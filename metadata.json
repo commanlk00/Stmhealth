@@ -1,0 +1,6 @@
+{
+  "name": "ระบบตรวจเช็คใบอนุญาตประกอบกิจการออนไลน์",
+  "description": "ระบบตรวจเช็คใบอนุญาตประกอบกิจการออนไลน์ แจ้งเตือนวันหมดอายุล่วงหน้า 30 วัน จัดการเอกสาร ชำระค่าธรรมเนียม PromptPay และเชื่อมต่อ Google Sheets",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
