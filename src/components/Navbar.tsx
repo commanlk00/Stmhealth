@@ -1,6 +1,21 @@
 import React, { useState } from 'react';
-import { ShieldCheck, Lock, Unlock, LogIn, LogOut, FileSpreadsheet, RefreshCw, CheckCircle2 } from 'lucide-react';
+import {
+  ShieldCheck,
+  Lock,
+  Unlock,
+  LogIn,
+  LogOut,
+  FileSpreadsheet,
+  RefreshCw,
+  CheckCircle2,
+  Shield,
+  FileText,
+  Database,
+  UserCheck,
+  ChevronDown,
+} from 'lucide-react';
 import { User } from 'firebase/auth';
+import { UserSession } from '../types';
 
 interface NavbarProps {
   user: User | null;
@@ -20,6 +35,11 @@ interface NavbarProps {
   onOpenNotifications: () => void;
   onOpenAddModal: () => void;
   onOpenReportModal: () => void;
+  currentSession: UserSession;
+  onOpenAuthModal: () => void;
+  onOpenWAFModal: () => void;
+  onOpenAuditModal: () => void;
+  onOpenDatabaseModal: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -40,9 +60,14 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenNotifications,
   onOpenAddModal,
   onOpenReportModal,
+  currentSession,
+  onOpenAuthModal,
+  onOpenWAFModal,
+  onOpenAuditModal,
+  onOpenDatabaseModal,
 }) => {
   const [showSheetDropdown, setShowSheetDropdown] = useState(false);
-  const [showLoginDropdown, setShowLoginDropdown] = useState(false);
+  const [showSecurityDropdown, setShowSecurityDropdown] = useState(false);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -89,12 +114,43 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
 
           {/* Right Action buttons */}
-          <div className="flex items-center space-x-2 sm:space-x-3">
+          <div className="flex items-center space-x-1.5 sm:space-x-2">
+            {/* WAF Shield Status Monitor Button */}
+            <button
+              onClick={onOpenWAFModal}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold bg-slate-900 text-slate-100 hover:bg-slate-800 border border-slate-700 shadow-xs transition-colors"
+              title="เปิดระบบมอนิเตอร์ Web Application Firewall (WAF) & Reverse Proxy"
+            >
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+              <Shield className="w-3.5 h-3.5 text-emerald-400" />
+              <span className="hidden xl:inline">WAF</span>
+            </button>
+
+            {/* Centralized Audit Log Button */}
+            <button
+              onClick={onOpenAuditModal}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+              title="ศูนย์ข้อมูลจราจรทางคอมพิวเตอร์และ Audit Trail (พ.ร.บ. คอมพิวเตอร์ฯ 90 วัน)"
+            >
+              <FileText className="w-3.5 h-3.5 text-blue-600" />
+              <span className="hidden xl:inline">Audit Logs</span>
+            </button>
+
+            {/* Relational DB & Storage Architecture */}
+            <button
+              onClick={onOpenDatabaseModal}
+              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
+              title="ตรวจสอบสถาปัตยกรรมฐานข้อมูล PostgreSQL/MySQL, Data Masking Engine และ Storage Access Control"
+            >
+              <Database className="w-3.5 h-3.5 text-indigo-600" />
+              <span className="hidden 2xl:inline">DB & Storage</span>
+            </button>
+
             {/* Security PIN toggle for PDPA protection */}
             <button
               onClick={onToggleSecurity}
               title={isSecurityUnlocked ? 'โหมดปลดล็อค: กำลังแสดงเลขบัตรประชาชนครบ 13 หลัก' : 'คลิกเพื่อปลดล็อคแสดงข้อมูลส่วนบุคคลด้วย PIN'}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 isSecurityUnlocked
                   ? 'bg-amber-100 text-amber-900 border border-amber-300 shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200'
@@ -102,13 +158,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             >
               {isSecurityUnlocked ? (
                 <>
-                  <Unlock className="w-4 h-4 text-amber-700" />
-                  <span className="hidden md:inline">PDPA ปลดล็อคแล้ว</span>
+                  <Unlock className="w-3.5 h-3.5 text-amber-700" />
+                  <span className="hidden md:inline">PDPA ปลดล็อค</span>
                 </>
               ) : (
                 <>
-                  <Lock className="w-4 h-4 text-slate-500" />
-                  <span className="hidden md:inline">ซ่อนข้อมูล ปชช. (PDPA)</span>
+                  <Lock className="w-3.5 h-3.5 text-slate-500" />
+                  <span className="hidden md:inline">PDPA Mask</span>
                 </>
               )}
             </button>
@@ -116,7 +172,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Monthly Report button */}
             <button
               onClick={onOpenReportModal}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium bg-slate-100 text-slate-800 hover:bg-slate-200 border border-slate-300 transition-colors"
             >
               <span>สรุปรายงาน</span>
             </button>
@@ -125,15 +181,15 @@ export const Navbar: React.FC<NavbarProps> = ({
             <div className="relative">
               <button
                 onClick={() => setShowSheetDropdown(!showSheetDropdown)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border ${
+                className={`flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-medium transition-all border ${
                   spreadsheetId
                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}
               >
-                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
                 <span className="hidden lg:inline">
-                  {spreadsheetId ? 'ฐานข้อมูล Sheets' : 'เชื่อม Google Sheets'}
+                  {spreadsheetId ? 'Sheets' : 'เชื่อม Sheets'}
                 </span>
               </button>
 
@@ -192,31 +248,66 @@ export const Navbar: React.FC<NavbarProps> = ({
             {/* Add New License button */}
             <button
               onClick={onOpenAddModal}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-colors"
             >
               <span>+ เพิ่มใบอนุญาต</span>
             </button>
 
+            {/* Active RBAC Session Pill & Switcher */}
+            <div className="pl-2 border-l border-slate-200 flex items-center space-x-1.5">
+              <button
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-2 p-1 px-2.5 rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50 hover:bg-blue-50/50 transition-all text-left"
+                title="คลิกเพื่อสลับบทบาทเจ้าหน้าที่ (RBAC) หรือเข้าสู่ระบบ ThaID"
+              >
+                <div
+                  className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold ${
+                    currentSession.role === 'DIRECTOR'
+                      ? 'bg-amber-600'
+                      : currentSession.role === 'FINANCE'
+                      ? 'bg-emerald-600'
+                      : currentSession.role === 'AUDITOR_ADMIN'
+                      ? 'bg-purple-600'
+                      : currentSession.role === 'CITIZEN'
+                      ? 'bg-indigo-600'
+                      : 'bg-blue-600'
+                  }`}
+                >
+                  {currentSession.role === 'CITIZEN' ? 'TH' : currentSession.role.slice(0, 2)}
+                </div>
+                <div className="hidden sm:block">
+                  <div className="text-[11px] font-bold text-slate-800 leading-tight truncate max-w-[120px]">
+                    {currentSession.name}
+                  </div>
+                  <div className="text-[10px] text-blue-700 font-medium leading-none flex items-center gap-1 mt-0.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    <span>{currentSession.roleTitle.split(' ')[0]}</span>
+                  </div>
+                </div>
+                <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+              </button>
+            </div>
+
             {/* Google Sign-in / User status */}
             {user ? (
-              <div className="flex items-center space-x-2 pl-2 border-l border-slate-200">
+              <div className="flex items-center space-x-1 pl-1">
                 {user.photoURL ? (
                   <img
                     src={user.photoURL}
                     alt={user.displayName || 'User'}
-                    className="w-8 h-8 rounded-full border border-slate-300"
+                    className="w-7 h-7 rounded-full border border-slate-300"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
+                  <div className="w-7 h-7 rounded-full bg-blue-100 text-blue-700 font-bold flex items-center justify-center text-xs">
                     {user.email?.[0].toUpperCase() || 'U'}
                   </div>
                 )}
                 <button
                   onClick={onLogout}
                   title="ออกจากระบบ Google"
-                  className="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors"
+                  className="p-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-slate-100 transition-colors"
                 >
-                  <LogOut className="w-4 h-4" />
+                  <LogOut className="w-3.5 h-3.5" />
                 </button>
               </div>
             ) : (
@@ -224,9 +315,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <button
                   onClick={onLogin}
                   disabled={isLoggingIn}
-                  className="gsi-material-button flex items-center gap-1.5 px-3 py-1.5 border border-slate-300 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors shadow-2xs"
+                  className="gsi-material-button flex items-center gap-1 px-2.5 py-1.5 border border-slate-300 rounded-lg text-xs font-medium hover:bg-slate-50 transition-colors shadow-2xs"
+                  title="เชื่อมต่อบัญชี Google Cloud"
                 >
-                  <div className="w-4 h-4">
+                  <div className="w-3.5 h-3.5">
                     <svg viewBox="0 0 48 48" className="w-full h-full">
                       <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
                       <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
@@ -234,20 +326,10 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
                     </svg>
                   </div>
-                  <span className="hidden sm:inline">
-                    {isLoggingIn ? 'กำลังเชื่อมต่อ...' : 'เข้าสู่ระบบ Google'}
+                  <span className="hidden xl:inline">
+                    {isLoggingIn ? '...' : 'Google'}
                   </span>
                 </button>
-
-                {/* Quick Officer login link */}
-                <div className="absolute right-0 top-full mt-1 text-[10px] text-right whitespace-nowrap">
-                  <button
-                    onClick={onOfficerLogin}
-                    className="text-slate-500 hover:text-blue-700 underline"
-                  >
-                    หรือเข้าสู่ระบบในโหมดเจ้าพนักงาน
-                  </button>
-                </div>
               </div>
             )}
           </div>

@@ -221,23 +221,37 @@ export const PromptPayModal: React.FC<PromptPayModalProps> = ({
                   )}
                 </div>
 
-                {/* Instant approval bypass for officer testing */}
-                <button
-                  onClick={() => {
-                    setIsVerifyingSlip(true);
-                    setTimeout(() => {
-                      setIsVerifyingSlip(false);
-                      setVerificationDone(true);
-                      const generatedRef = `TXN-OFFICER-${Date.now().toString().slice(-6)}`;
+                {/* Gateway Webhook Simulator */}
+                <div className="p-3 bg-slate-900 text-slate-200 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-mono text-emerald-400 font-bold flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      Payment Gateway Webhook (HMAC-SHA256)
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">POST /api/webhooks/promptpay</span>
+                  </div>
+                  <p className="text-[11px] text-slate-300">
+                    รองรับ Webhook จากธนาคาร/Payment Gateway เพื่อยืนยันยอดเงินและปรับสถานะใบอนุญาตอัตโนมัติ
+                  </p>
+                  <button
+                    onClick={() => {
+                      setIsVerifyingSlip(true);
                       setTimeout(() => {
-                        onPaymentSuccess(license.id, generatedRef);
+                        setIsVerifyingSlip(false);
+                        setVerificationDone(true);
+                        const webhookRef = `WH-PP-GATEWAY-${Date.now().toString().slice(-6)}`;
+                        setTimeout(() => {
+                          onPaymentSuccess(license.id, webhookRef);
+                        }, 900);
                       }, 1000);
-                    }, 800);
-                  }}
-                  className="w-full py-2 px-3 text-xs text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg border border-dashed border-slate-300 font-medium transition-colors"
-                >
-                  ⚡ จำลองการชำระเงินสำเร็จ (Instant Simulate PromptPay Payment)
-                </button>
+                    }}
+                    disabled={isVerifyingSlip}
+                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isVerifyingSlip ? 'animate-spin' : ''}`} />
+                    <span>จำลอง Webhook ยืนยันการชำระเงินอัตโนมัติ (Trigger Webhook)</span>
+                  </button>
+                </div>
               </div>
             </>
           )}

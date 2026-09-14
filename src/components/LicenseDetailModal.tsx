@@ -17,10 +17,12 @@ import {
   Shield,
   FileSpreadsheet,
   ExternalLink,
+  FileCheck2,
 } from 'lucide-react';
-import { LicenseRecord, UploadedDocument } from '../types';
+import { LicenseRecord, UploadedDocument, UserSession } from '../types';
 import { CATEGORY_REQUIREMENTS } from '../data/categoryRequirements';
-import { evaluateLicenseStatus, formatCurrency, formatThaiDate, maskNationalId } from '../utils/licenseUtils';
+import { evaluateLicenseStatus, formatCurrency, formatThaiDate } from '../utils/licenseUtils';
+import { maskNationalId } from '../services/maskingService';
 
 interface LicenseDetailModalProps {
   license: LicenseRecord | null;
@@ -31,6 +33,8 @@ interface LicenseDetailModalProps {
   onOpenPromptPay: (license: LicenseRecord) => void;
   onOpenNotification: (license: LicenseRecord) => void;
   onOpenDocPreview: (doc: UploadedDocument, license: LicenseRecord) => void;
+  currentSession: UserSession;
+  onOpenELicense: (license: LicenseRecord) => void;
 }
 
 export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
@@ -42,6 +46,8 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
   onOpenPromptPay,
   onOpenNotification,
   onOpenDocPreview,
+  currentSession,
+  onOpenELicense,
 }) => {
   if (!license) return null;
 
@@ -142,7 +148,7 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
               <div>
                 <span className="text-slate-400 block text-[11px]">เลขประจำตัวประชาชน (13 หลัก):</span>
                 <span className="font-mono text-slate-800 font-medium">
-                  {maskNationalId(license.ownerNationalId, isSecurityUnlocked)}
+                  {maskNationalId(license.ownerNationalId, currentSession.role, isSecurityUnlocked)}
                 </span>
               </div>
 
@@ -344,11 +350,21 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
             <button
               onClick={() => {
                 onClose();
+                onOpenELicense(license);
+              }}
+              className="px-3 py-2 rounded-lg text-xs font-semibold bg-amber-700 hover:bg-amber-800 text-white flex items-center gap-1.5 shadow-xs transition-colors"
+            >
+              <FileCheck2 className="w-3.5 h-3.5" /> E-License ดิจิทัล (PDF/A)
+            </button>
+
+            <button
+              onClick={() => {
+                onClose();
                 onOpenNotification(license);
               }}
               className="px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-700 hover:bg-emerald-800 text-white flex items-center gap-1.5 shadow-xs transition-colors"
             >
-              <Send className="w-3.5 h-3.5" /> ส่งแจ้งเตือน LINE OA / Email
+              <Send className="w-3.5 h-3.5" /> ส่งแจ้งเตือน
             </button>
 
             <button

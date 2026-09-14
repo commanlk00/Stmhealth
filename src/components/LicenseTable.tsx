@@ -13,9 +13,13 @@ import {
   ShieldAlert,
   ChevronRight,
   ExternalLink,
+  FileCheck2,
+  Award,
+  UserCheck,
 } from 'lucide-react';
-import { BusinessCategory, LicenseRecord, LicenseStatus } from '../types';
-import { evaluateLicenseStatus, formatCurrency, formatThaiDate, maskNationalId } from '../utils/licenseUtils';
+import { BusinessCategory, LicenseRecord, LicenseStatus, UserSession } from '../types';
+import { evaluateLicenseStatus, formatCurrency, formatThaiDate } from '../utils/licenseUtils';
+import { maskNationalId } from '../services/maskingService';
 
 interface LicenseTableProps {
   licenses: LicenseRecord[];
@@ -27,6 +31,8 @@ interface LicenseTableProps {
   onOpenPromptPay: (license: LicenseRecord) => void;
   onOpenNotification: (license: LicenseRecord) => void;
   onOpenDocPreview: (doc: any, license: LicenseRecord) => void;
+  currentSession: UserSession;
+  onOpenELicense: (license: LicenseRecord) => void;
 }
 
 export const LicenseTable: React.FC<LicenseTableProps> = ({
@@ -39,13 +45,22 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
   onOpenPromptPay,
   onOpenNotification,
   onOpenDocPreview,
+  currentSession,
+  onOpenELicense,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [filterCitizenOnly, setFilterCitizenOnly] = useState(currentSession.role === 'CITIZEN');
 
   // Filter licenses
   const filteredLicenses = useMemo(() => {
     return licenses.filter((item) => {
+      // Citizen filter
+      if (filterCitizenOnly && currentSession.role === 'CITIZEN') {
+        const isSomchai = item.ownerFullName.includes('สมชาย') || item.ownerNationalId.includes('99823');
+        if (!isSomchai) return false;
+      }
+
       // Category filter
       if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
         return false;
@@ -80,6 +95,37 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
+      {/* Citizen portal banner if in CITIZEN mode */}
+      {currentSession.role === 'CITIZEN' && (
+        <div className="bg-indigo-900 text-white p-3.5 px-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2.5">
+            <div className="p-1.5 bg-white/10 rounded-lg">
+              <UserCheck className="w-4 h-4 text-emerald-400" />
+            </div>
+            <div>
+              <div className="font-bold">
+                เข้าสู่ระบบบริการประชาชนด้วย ThaID (ผู้ประกอบการ: {currentSession.name})
+              </div>
+              <p className="text-[11px] text-indigo-200">
+                ท่านสามารถตรวจสอบใบอนุญาตของท่าน, สแกนชำระเงินผ่าน PromptPay, และดาวน์โหลด E-License PDF/A
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setFilterCitizenOnly(!filterCitizenOnly)}
+              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                filterCitizenOnly
+                  ? 'bg-indigo-500 text-white shadow-xs'
+                  : 'bg-indigo-800 text-indigo-200 hover:bg-indigo-700'
+              }`}
+            >
+              {filterCitizenOnly ? '✓ กรองเฉพาะกิจการของฉัน' : 'แสดงกิจการทั้งหมดในระบบ'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Search & Filter Header Bar */}
       <div className="p-4 border-b border-slate-200 space-y-3">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -271,7 +317,7 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                         {lic.ownerFullName}
                       </div>
                       <div className="text-[11px] font-mono text-slate-400 mt-0.5">
-                        บัตร ปชช: {maskNationalId(lic.ownerNationalId, isSecurityUnlocked)}
+                        บัตร ปชช: {maskNationalId(lic.ownerNationalId, currentSession.role, isSecurityUnlocked)}
                       </div>
                     </td>
 
@@ -351,6 +397,15 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                     {/* Actions */}
                     <td className="py-3.5 px-4 text-center whitespace-nowrap">
                       <div className="flex items-center justify-center space-x-1">
+                        {/* E-License & Digital Signature */}
+                        <button
+                          onClick={() => onOpenELicense(lic)}
+                          title="ดู/พิมพ์ใบอนุญาตดิจิทัล E-License (PDF/A + ลายมือชื่ออิเล็กทรอนิกส์)"
+                          className="p-1.5 rounded-lg text-amber-700 hover:bg-amber-50 transition-colors"
+                        >
+                          <FileCheck2 className="w-4 h-4" />
+                        </button>
+
                         {/* View details */}
                         <button
                           onClick={() => onSelectLicense(lic)}

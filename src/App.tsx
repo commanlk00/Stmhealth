@@ -11,9 +11,16 @@ import { MonthlyReportModal } from './components/MonthlyReportModal';
 import { NotificationCenterModal } from './components/NotificationCenterModal';
 import { SecurityPinModal } from './components/SecurityPinModal';
 import { DocumentPreviewModal } from './components/DocumentPreviewModal';
-import { LicenseRecord, UploadedDocument } from './types';
+import { AuthModal } from './components/AuthModal';
+import { WAFSecurityModal } from './components/WAFSecurityModal';
+import { AuditLogModal } from './components/AuditLogModal';
+import { DatabaseExplorerModal } from './components/DatabaseExplorerModal';
+import { ELicenseModal } from './components/ELicenseModal';
+import { LicenseRecord, UploadedDocument, UserSession, DigitalSignature } from './types';
 import { getStoredLicenses, saveStoredLicenses } from './data/mockLicenses';
 import { googleSignIn, initAuth, logout, signInAsOfficer } from './services/firebaseAuth';
+import { getCurrentSession, saveCurrentSession, hasPermission } from './services/rbacService';
+import { recordAuditLog } from './services/auditLogService';
 import {
   createLicenseSpreadsheet,
   syncAllLicensesToGoogleSheet,
@@ -25,6 +32,9 @@ import { CheckCircle2, AlertCircle } from 'lucide-react';
 export default function App() {
   // Licenses data
   const [licenses, setLicenses] = useState<LicenseRecord[]>(() => getStoredLicenses());
+
+  // RBAC User Session State
+  const [currentSession, setCurrentSession] = useState<UserSession>(() => getCurrentSession());
 
   // Google Auth & Workspace state
   const [user, setUser] = useState<User | null>(null);
@@ -50,10 +60,17 @@ export default function App() {
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState<boolean>(false);
 
+  // Security & Infrastructure Modals
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isWAFModalOpen, setIsWAFModalOpen] = useState<boolean>(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
+  const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState<boolean>(false);
+
   const [selectedLicenseForDetail, setSelectedLicenseForDetail] = useState<LicenseRecord | null>(null);
   const [selectedLicenseForRenewal, setSelectedLicenseForRenewal] = useState<LicenseRecord | null>(null);
   const [selectedLicenseForPayment, setSelectedLicenseForPayment] = useState<LicenseRecord | null>(null);
   const [selectedLicenseForNotification, setSelectedLicenseForNotification] = useState<LicenseRecord | null>(null);
+  const [selectedLicenseForELicense, setSelectedLicenseForELicense] = useState<LicenseRecord | null>(null);
   const [previewDocState, setPreviewDocState] = useState<{
     doc: UploadedDocument;
     license: LicenseRecord;
@@ -111,20 +128,112 @@ export default function App() {
     }
   };
 
+  // Session & RBAC Switcher
+  const handleSessionChange = (newSession: UserSession) => {
+    setCurrentSession(newSession);
+    saveCurrentSession(newSession);
+    recordAuditLog({
+      action: 'LOGIN',
+      resource: 'AUTH',
+      actor: newSession.name,
+      actorRole: newSession.role,
+      status: 'SUCCESS',
+      details: `สลับบทบาทผู้ใช้งานเป็น ${newSession.roleTitle} (${newSession.authMethod || 'MOCK'})`,
+    });
+    showToast(`สลับบทบาทเป็น: ${newSession.roleTitle}`);
+  };
+
   // Quick Officer Sign-in (for quick testing without Google popup)
   const handleOfficerLogin = () => {
     const officer = signInAsOfficer();
     setUser(officer.user as User);
     setToken(officer.accessToken);
+    recordAuditLog({
+      action: 'LOGIN',
+      resource: 'AUTH',
+      actor: 'เจ้าพนักงานสาธารณสุขชำนาญการ',
+      actorRole: 'OFFICER',
+      status: 'SUCCESS',
+      details: 'เข้าสู่ระบบในโหมดเจ้าพนักงานสาธารณสุข (Quick Login)',
+    });
     showToast(`เข้าสู่ระบบในโหมดเจ้าพนักงานสาธารณสุขเรียบร้อย`);
   };
 
   // Logout
   const handleLogout = async () => {
+    recordAuditLog({
+      action: 'LOGOUT',
+      resource: 'AUTH',
+      actor: currentSession.name,
+      actorRole: currentSession.role,
+      status: 'SUCCESS',
+      details: 'ออกจากระบบ Google และเคลียร์เซสชัน',
+    });
     await logout();
     setUser(null);
     setToken(null);
     showToast('ออกจากระบบเรียบร้อย', 'info');
+  };
+
+  // Check RBAC permission before adding license
+  const handleOpenAddLicense = () => {
+    if (!hasPermission(currentSession.role, 'CREATE_LICENSE')) {
+      showToast('บทบาทของท่านไม่มีสิทธิ์ออกใบอนุญาตใหม่ (เฉพาะเจ้าพนักงานหรือผู้ดูแลระบบ)', 'warning');
+      return;
+    }
+    setIsAddModalOpen(true);
+  };
+
+  // Check RBAC permission before renewing
+  const handleOpenRenewal = (lic: LicenseRecord) => {
+    if (!hasPermission(currentSession.role, 'RENEW_LICENSE')) {
+      showToast('บทบาทของท่านไม่มีสิทธิ์ดำเนินการต่ออายุ (เฉพาะเจ้าพนักงานสาธารณสุขหรือการเงิน)', 'warning');
+      return;
+    }
+    setSelectedLicenseForRenewal(lic);
+  };
+
+  // Digital Signature signing for E-License
+  const handleSignELicense = (licenseId: string) => {
+    const signature: DigitalSignature = {
+      signatoryName: currentSession.name || 'นพ.เกียรติศักดิ์ เจริญผล',
+      signatoryPosition: currentSession.roleTitle || 'ผู้อำนวยการกองสาธารณสุขและสิ่งแวดล้อม',
+      signedAt: new Date().toLocaleString('th-TH'),
+      signatureAlgorithm: 'SHA256withRSA',
+      signatureDigest: '9a4c8e12b7f3d9e018a4521c7e9a4f61b83cd912e74a89bc2130e9d4a82fb10e',
+      tsaTimestamp: new Date().toISOString(),
+      certificateAuthority: 'Thailand National Root CA (NRCA-TH-GOV-2026)',
+      verificationQrUrl: `https://e-license.localgov.go.th/verify?id=${licenseId}`,
+      isValid: true,
+    };
+
+    updateLicensesState((prev) =>
+      prev.map((item) =>
+        item.id === licenseId
+          ? {
+              ...item,
+              eLicenseSignature: signature,
+              approvalStatus: 'approved',
+              approvedBy: signature.signatoryName,
+              approvedAt: signature.signedAt,
+            }
+          : item
+      )
+    );
+
+    setSelectedLicenseForELicense((prev) =>
+      prev && prev.id === licenseId
+        ? {
+            ...prev,
+            eLicenseSignature: signature,
+            approvalStatus: 'approved',
+            approvedBy: signature.signatoryName,
+            approvedAt: signature.signedAt,
+          }
+        : prev
+    );
+
+    showToast(`ลงนามดิจิทัลรับรองใบอนุญาตอิเล็กทรอนิกส์สำเร็จ!`);
   };
 
   // Create Google Spreadsheet or Re-link
@@ -162,6 +271,14 @@ export default function App() {
       // Immediately sync current data
       await syncAllLicensesToGoogleSheet(currentToken, sheetRes.id, licenses);
       setIsSyncingSheet(false);
+      recordAuditLog({
+        action: 'EXPORT_DATA',
+        resource: 'GOOGLE_SHEETS',
+        actor: currentSession.name,
+        actorRole: currentSession.role,
+        status: 'SUCCESS',
+        details: `สร้างและเชื่อมต่อ Google Sheet ID: ${sheetRes.id}`,
+      });
       showToast('สร้างและเชื่อมโยง Google Sheet สำเร็จแล้ว! ข้อมูลทั้งหมดถูกซิงค์เรียบร้อย');
     } catch (err: any) {
       setIsSyncingSheet(false);
@@ -181,6 +298,14 @@ export default function App() {
       const success = await syncAllLicensesToGoogleSheet(token, spreadsheetId, licenses);
       setIsSyncingSheet(false);
       if (success) {
+        recordAuditLog({
+          action: 'EXPORT_DATA',
+          resource: 'GOOGLE_SHEETS',
+          actor: currentSession.name,
+          actorRole: currentSession.role,
+          status: 'SUCCESS',
+          details: `ซิงค์ข้อมูลใบอนุญาตทั้งหมด (${licenses.length} รายการ) ไปยัง Google Sheets`,
+        });
         showToast('อัปเดตข้อมูลทั้งหมดไปยัง Google Sheets สำเร็จ');
       } else {
         alert('เกิดข้อผิดพลาดในการซิงค์ข้อมูล Google Sheet');
@@ -192,7 +317,7 @@ export default function App() {
     }
   };
 
-  // License Renewal Handler (Auto updates Google Sheets!)
+  // License Renewal Handler (Auto updates Google Sheets and logs audit trail)
   const handleConfirmRenewal = async (
     licenseId: string,
     newExpiryDate: string,
@@ -214,7 +339,7 @@ export default function App() {
               paidVia: 'PromptPay' as const,
               transactionRef: `PP-RNW-${Date.now().toString().slice(-6)}`,
               syncedToGoogleSheet: Boolean(token && spreadsheetId && syncToSheet),
-              officerName: user?.displayName || 'เจ้าพนักงานสาธารณสุข',
+              officerName: currentSession.name || 'เจ้าพนักงานสาธารณสุข',
               notes: officerNotes,
             },
           ];
@@ -234,6 +359,17 @@ export default function App() {
         return item;
       })
     );
+
+    // Record Centralized Audit Log
+    recordAuditLog({
+      action: 'RENEW_LICENSE',
+      resource: 'LICENSES',
+      resourceId: licenseId,
+      actor: currentSession.name,
+      actorRole: currentSession.role,
+      status: 'SUCCESS',
+      details: `ต่ออายุใบอนุญาต ${renewedItem?.licenseNo || licenseId} ถึงวันที่ ${newExpiryDate} บันทึก: ${officerNotes || 'ต่ออายุตามระเบียบ'}`,
+    });
 
     // If Google Sheet is connected and toggle enabled, auto update Google Sheet row!
     if (token && spreadsheetId && syncToSheet && renewedItem) {
@@ -271,6 +407,16 @@ export default function App() {
       })
     );
 
+    recordAuditLog({
+      action: 'PAYMENT_RECEIPT',
+      resource: 'PAYMENT',
+      resourceId: licenseId,
+      actor: currentSession.name,
+      actorRole: currentSession.role,
+      status: 'SUCCESS',
+      details: `รับชำระค่าธรรมเนียมใบอนุญาตผ่าน PromptPay เลขที่อ้างอิง: ${transactionRef}`,
+    });
+
     setSelectedLicenseForPayment(null);
     showToast(`รับชำระเงินผ่าน PromptPay เลขที่ ${transactionRef} สำเร็จ!`);
 
@@ -287,6 +433,17 @@ export default function App() {
   // Add new license handler
   const handleSaveNewLicense = async (newLicense: LicenseRecord) => {
     updateLicensesState((prev) => [newLicense, ...prev]);
+
+    recordAuditLog({
+      action: 'CREATE_LICENSE',
+      resource: 'LICENSES',
+      resourceId: newLicense.id,
+      actor: currentSession.name,
+      actorRole: currentSession.role,
+      status: 'SUCCESS',
+      details: `ลงทะเบียนและออกใบอนุญาตใหม่เลขที่ ${newLicense.licenseNo} (${newLicense.businessName})`,
+    });
+
     showToast(`ลงทะเบียนและออกใบอนุญาต ${newLicense.licenseNo} สำเร็จ`);
 
     // Auto sync to sheet
@@ -314,6 +471,16 @@ export default function App() {
         return item;
       })
     );
+
+    recordAuditLog({
+      action: 'SEND_NOTIFICATION',
+      resource: 'NOTIFICATIONS',
+      actor: currentSession.name,
+      actorRole: currentSession.role,
+      status: 'SUCCESS',
+      details: 'สั่งยิงระบบแจ้งเตือนล่วงหน้า 30 วันอัตโนมัติผ่าน LINE Official Account และ Email แบบกลุ่ม',
+    });
+
     showToast('ส่งข้อความแจ้งเตือนล่วงหน้า 30 วันผ่าน LINE OA และ Email ให้สถานประกอบการทั้งหมดแล้ว!');
   };
 
@@ -351,6 +518,14 @@ export default function App() {
         onToggleSecurity={() => {
           if (isSecurityUnlocked) {
             setIsSecurityUnlocked(false);
+            recordAuditLog({
+              action: 'DATA_MASK_TOGGLE',
+              resource: 'PDPA',
+              actor: currentSession.name,
+              actorRole: currentSession.role,
+              status: 'SUCCESS',
+              details: 'เปิดใช้งานการซ่อนข้อมูลส่วนบุคคล (PDPA Masking)',
+            });
             showToast('ล็อคการแสดงข้อมูลส่วนบุคคล (PDPA Protected)', 'info');
           } else {
             setIsPinModalOpen(true);
@@ -358,8 +533,13 @@ export default function App() {
         }}
         expiringCount={expiringCount}
         onOpenNotifications={() => setIsNotificationModalOpen(true)}
-        onOpenAddModal={() => setIsAddModalOpen(true)}
+        onOpenAddModal={handleOpenAddLicense}
         onOpenReportModal={() => setIsReportModalOpen(true)}
+        currentSession={currentSession}
+        onOpenWAFModal={() => setIsWAFModalOpen(true)}
+        onOpenAuditModal={() => setIsAuditModalOpen(true)}
+        onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
 
       {/* Page Content Container */}
@@ -373,20 +553,22 @@ export default function App() {
           onOpenNotifications={() => setIsNotificationModalOpen(true)}
         />
 
-        {/* License Table with Search, 4 Category Filter, Actions */}
+        {/* License Table with Search, 4 Category Filter, Actions, RBAC */}
         <LicenseTable
           licenses={licenses}
           activeStatusFilter={statusFilter}
           onStatusFilterChange={(st) => setStatusFilter(st)}
           isSecurityUnlocked={isSecurityUnlocked}
           onSelectLicense={(lic) => setSelectedLicenseForDetail(lic)}
-          onOpenRenewal={(lic) => setSelectedLicenseForRenewal(lic)}
+          onOpenRenewal={(lic) => handleOpenRenewal(lic)}
           onOpenPromptPay={(lic) => setSelectedLicenseForPayment(lic)}
           onOpenNotification={(lic) => {
             setSelectedLicenseForNotification(lic);
             setIsNotificationModalOpen(true);
           }}
           onOpenDocPreview={(doc, lic) => setPreviewDocState({ doc, license: lic })}
+          currentSession={currentSession}
+          onOpenELicense={(lic) => setSelectedLicenseForELicense(lic)}
         />
       </main>
 
@@ -397,7 +579,7 @@ export default function App() {
           {new Date().getFullYear()} กองสาธารณสุขและสิ่งแวดล้อม
         </p>
         <p className="text-[11px] text-slate-400 mt-0.5">
-          เชื่อมโยงข้อมูลแบบเรียลไทม์กับ Google Sheets, Google Drive, PromptPay, และ LINE OA
+          เชื่อมโยงข้อมูลแบบเรียลไทม์กับ Google Sheets, Google Drive, PromptPay, LINE OA, และ WAF Security Architecture
         </p>
       </footer>
 
@@ -433,13 +615,15 @@ export default function App() {
             setIsPinModalOpen(true);
           }
         }}
-        onOpenRenewal={(lic) => setSelectedLicenseForRenewal(lic)}
+        onOpenRenewal={(lic) => handleOpenRenewal(lic)}
         onOpenPromptPay={(lic) => setSelectedLicenseForPayment(lic)}
         onOpenNotification={(lic) => {
           setSelectedLicenseForNotification(lic);
           setIsNotificationModalOpen(true);
         }}
         onOpenDocPreview={(doc, lic) => setPreviewDocState({ doc, license: lic })}
+        currentSession={currentSession}
+        onOpenELicense={(lic) => setSelectedLicenseForELicense(lic)}
       />
 
       <MonthlyReportModal
@@ -464,6 +648,14 @@ export default function App() {
         onClose={() => setIsPinModalOpen(false)}
         onSuccess={() => {
           setIsSecurityUnlocked(true);
+          recordAuditLog({
+            action: 'DATA_MASK_TOGGLE',
+            resource: 'PDPA',
+            actor: currentSession.name,
+            actorRole: currentSession.role,
+            status: 'SUCCESS',
+            details: 'ยืนยันรหัส PIN ปลดล็อคการแสดงเลขบัตรประชาชนครบ 13 หลัก',
+          });
           showToast('ยืนยันรหัส PIN สำเร็จ: ปลดล็อคการแสดงผลข้อมูลส่วนบุคคล');
         }}
       />
@@ -472,6 +664,38 @@ export default function App() {
         document={previewDocState?.doc || null}
         license={previewDocState?.license || null}
         onClose={() => setPreviewDocState(null)}
+      />
+
+      {/* Security Infrastructure Modals */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        currentSession={currentSession}
+        onSelectSession={handleSessionChange}
+      />
+
+      <WAFSecurityModal
+        isOpen={isWAFModalOpen}
+        onClose={() => setIsWAFModalOpen(false)}
+      />
+
+      <AuditLogModal
+        isOpen={isAuditModalOpen}
+        onClose={() => setIsAuditModalOpen(false)}
+        currentRole={currentSession.role}
+      />
+
+      <DatabaseExplorerModal
+        isOpen={isDatabaseModalOpen}
+        onClose={() => setIsDatabaseModalOpen(false)}
+      />
+
+      <ELicenseModal
+        isOpen={Boolean(selectedLicenseForELicense)}
+        onClose={() => setSelectedLicenseForELicense(null)}
+        license={selectedLicenseForELicense}
+        currentSession={currentSession}
+        onSignLicense={handleSignELicense}
       />
     </div>
   );
