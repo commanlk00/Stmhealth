@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   X,
   Upload,
@@ -19,6 +19,7 @@ import {
   Info,
   Layers,
   ChevronRight,
+  Edit3,
 } from 'lucide-react';
 import {
   BusinessCategory,
@@ -40,8 +41,9 @@ import { formatCurrency } from '../utils/licenseUtils';
 interface AddEditLicenseModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSaveLicense: (newLicense: LicenseRecord) => Promise<void>;
+  onSaveLicense: (license: LicenseRecord, isEditing: boolean) => Promise<void>;
   hasGoogleSheetConnected: boolean;
+  licenseToEdit?: LicenseRecord | null;
 }
 
 export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
@@ -49,6 +51,7 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
   onClose,
   onSaveLicense,
   hasGoogleSheetConnected,
+  licenseToEdit,
 }) => {
   if (!isOpen) return null;
 
@@ -77,6 +80,57 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUploadingDocId, setCurrentUploadingDocId] = useState<string>('');
+
+  // Sync form state when modal opens or licenseToEdit changes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    if (licenseToEdit) {
+      setCategory(licenseToEdit.category);
+      setAreaSquareMeters(licenseToEdit.areaSquareMeters || 180);
+      setLicenseNo(licenseToEdit.licenseNo);
+      setBusinessName(licenseToEdit.businessName);
+      setOwnerFullName(licenseToEdit.ownerFullName);
+      setOwnerNationalId(licenseToEdit.ownerNationalId);
+      setIdCardAddress(licenseToEdit.idCardAddress);
+      setBusinessAddress(licenseToEdit.businessAddress);
+      setContactPhone(licenseToEdit.contactPhone || '');
+      setContactEmail(licenseToEdit.contactEmail || '');
+      setIssueDate(licenseToEdit.issueDate);
+      setExpiryDate(licenseToEdit.expiryDate);
+      setUploadedDocs(licenseToEdit.documents || []);
+      setSyncToSheet(licenseToEdit.syncedToSheet ?? true);
+
+      if (licenseToEdit.category === 'HAZARDOUS_HEALTH') {
+        const grp = licenseToEdit.hazardousGroupCode || 'group-6';
+        const typ = licenseToEdit.hazardousTypeCode || '6(1)';
+        setHazardousGroupCode(grp);
+        setHazardousTypeCode(typ);
+        setSelectedQuickPick(typ);
+      }
+    } else {
+      setCategory('FOOD_ESTABLISHMENT');
+      setAreaSquareMeters(180);
+      setLicenseNo(`สธ-${Math.floor(1000 + Math.random() * 9000)}/2569`);
+      setBusinessName('');
+      setOwnerFullName('');
+      setOwnerNationalId('');
+      setIdCardAddress('');
+      setBusinessAddress('');
+      setContactPhone('');
+      setContactEmail('');
+      setIssueDate(new Date().toISOString().split('T')[0]);
+      const defaultExp = new Date();
+      defaultExp.setFullYear(defaultExp.getFullYear() + 1);
+      setExpiryDate(defaultExp.toISOString().split('T')[0]);
+      setUploadedDocs([]);
+      setSyncToSheet(true);
+      setHazardousGroupCode('group-6');
+      setHazardousTypeCode('6(1)');
+      setSelectedQuickPick('6(1)');
+      setHazardousSearchQuery('');
+    }
+  }, [isOpen, licenseToEdit]);
 
   // Hazardous business category states
   const [hazardousGroupCode, setHazardousGroupCode] = useState<string>('group-6');
@@ -195,8 +249,9 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
       ? `7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [${selectedHazardousType.code} ${selectedHazardousType.shortName}]`
       : currentRule.title;
 
-    const newLicense: LicenseRecord = {
-      id: `lic-${Date.now()}`,
+    const isEditing = Boolean(licenseToEdit);
+    const targetLicense: LicenseRecord = {
+      id: licenseToEdit ? licenseToEdit.id : `lic-${Date.now()}`,
       licenseNo: licenseNo,
       category: category,
       categoryLabel: finalCategoryLabel,
@@ -217,22 +272,30 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
       issueDate: issueDate,
       expiryDate: expiryDate,
       feeAmount: finalFee,
-      status: 'active',
+      status: licenseToEdit ? licenseToEdit.status : 'active',
       documents: uploadedDocs,
-      paymentStatus: 'paid',
-      notification30DaysSent: false,
+      paymentStatus: licenseToEdit ? licenseToEdit.paymentStatus : 'paid',
+      promptpayRef: licenseToEdit ? licenseToEdit.promptpayRef : undefined,
+      paidAt: licenseToEdit ? licenseToEdit.paidAt : undefined,
+      notification30DaysSent: licenseToEdit ? licenseToEdit.notification30DaysSent : false,
+      lastNotifiedDate: licenseToEdit ? licenseToEdit.lastNotifiedDate : undefined,
       syncedToSheet: hasGoogleSheetConnected && syncToSheet,
-      renewalHistory: [],
+      renewalHistory: licenseToEdit ? (licenseToEdit.renewalHistory || []) : [],
+      eLicenseSignature: licenseToEdit ? licenseToEdit.eLicenseSignature : undefined,
+      approvalStatus: licenseToEdit ? licenseToEdit.approvalStatus : undefined,
+      approvedBy: licenseToEdit ? licenseToEdit.approvedBy : undefined,
+      approvedAt: licenseToEdit ? licenseToEdit.approvedAt : undefined,
+      notes: licenseToEdit ? licenseToEdit.notes : undefined,
     };
 
     try {
-      await onSaveLicense(newLicense);
+      await onSaveLicense(targetLicense, isEditing);
       setIsSaving(false);
       onClose();
     } catch (err) {
       console.error('Error saving license:', err);
       setIsSaving(false);
-      alert('ไม่สามารถบันทึกใบอนุญาตได้');
+      alert('ไม่สามารถบันทึกข้อมูลได้');
     }
   };
 
@@ -242,15 +305,24 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
         {/* Header */}
         <div className="bg-slate-900 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold">
-              +
+            <div className={`w-10 h-10 rounded-xl ${licenseToEdit ? 'bg-indigo-600' : 'bg-blue-600'} flex items-center justify-center text-white font-bold`}>
+              {licenseToEdit ? <Edit3 className="w-5 h-5" /> : '+'}
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-bold">
-                ลงทะเบียน / ออกใบอนุญาตประกอบกิจการใหม่
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-bold">
+                  {licenseToEdit ? 'แก้ไขข้อมูลใบอนุญาตประกอบกิจการ' : 'ลงทะเบียน / ออกใบอนุญาตประกอบกิจการใหม่'}
+                </h2>
+                {licenseToEdit && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/40 text-indigo-200 border border-indigo-400/30">
+                    โหมดแก้ไข
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-400">
-                ระบบคัดกรองเงื่อนไขตาม พ.ร.บ. สาธารณสุข และเชื่อมโยง Google Sheets
+                {licenseToEdit
+                  ? `แก้ไขข้อมูลสถานประกอบการและรายละเอียดผู้ขอ (เลขที่: ${licenseToEdit.licenseNo})`
+                  : 'ระบบคัดกรองเงื่อนไขตาม พ.ร.บ. สาธารณสุข และเชื่อมโยง Google Sheets'}
               </p>
             </div>
           </div>
@@ -265,24 +337,39 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
 
         {/* Scrollable Form */}
         <form onSubmit={handleSubmit} className="p-5 overflow-y-auto space-y-5 text-xs sm:text-sm">
-          {/* OCR / Smart Auto-fill demo banner */}
-          <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
-              <div className="text-xs text-blue-900">
-                <span className="font-semibold">ระบบช่วยกรอกข้อมูลอัตโนมัติ (Smart OCR):</span>{' '}
-                ลดความผิดพลาดจากการคีย์ข้อมูลด้วยมือ
+          {/* Banner for Edit Mode or OCR for New Mode */}
+          {licenseToEdit ? (
+            <div className="p-3 bg-indigo-50/80 border border-indigo-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-4 h-4 text-indigo-600 shrink-0" />
+                <div className="text-xs text-indigo-900">
+                  <span className="font-semibold">โหมดแก้ไขข้อมูลใบอนุญาต:</span>{' '}
+                  ท่านสามารถปรับปรุงข้อมูลสถานประกอบการ, ที่อยู่, เบอร์โทร, ประเภทกิจการ, หรืออัปโหลดเอกสารใหม่ และกดบันทึกเพื่ออัปเดตระบบ
+                </div>
               </div>
+              <span className="text-[11px] font-mono font-bold text-indigo-700 bg-indigo-100 px-2 py-0.5 rounded shrink-0">
+                {licenseToEdit.licenseNo}
+              </span>
             </div>
-            <button
-              type="button"
-              onClick={handleOcrAutofill}
-              disabled={ocrScanning}
-              className="px-2.5 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-2xs transition-colors shrink-0"
-            >
-              {ocrScanning ? 'กำลังวิเคราะห์เอกสาร...' : '⚡ ดึงข้อมูลตัวอย่าง'}
-            </button>
-          </div>
+          ) : (
+            <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                <div className="text-xs text-blue-900">
+                  <span className="font-semibold">ระบบช่วยกรอกข้อมูลอัตโนมัติ (Smart OCR):</span>{' '}
+                  ลดความผิดพลาดจากการคีย์ข้อมูลด้วยมือ
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handleOcrAutofill}
+                disabled={ocrScanning}
+                className="px-2.5 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-2xs transition-colors shrink-0"
+              >
+                {ocrScanning ? 'กำลังวิเคราะห์เอกสาร...' : '⚡ ดึงข้อมูลตัวอย่าง'}
+              </button>
+            </div>
+          )}
 
           {/* Section 1: ประเภทกิจการ (ตามข้อ 7.1 - 7.4) */}
           <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3">
@@ -867,9 +954,17 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="px-5 py-2 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-700 text-white shadow-xs flex items-center gap-1.5 transition-colors"
+              className={`px-5 py-2 rounded-lg text-xs font-semibold ${
+                licenseToEdit
+                  ? 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              } shadow-xs flex items-center gap-1.5 transition-colors`}
             >
-              {isSaving ? 'กำลังบันทึก...' : 'บันทึกใบอนุญาตประกอบกิจการ'}
+              {isSaving
+                ? 'กำลังบันทึก...'
+                : licenseToEdit
+                ? '💾 บันทึกการแก้ไขข้อมูล'
+                : 'บันทึกใบอนุญาตประกอบกิจการ'}
             </button>
           </div>
         </form>

@@ -39,7 +39,7 @@ export const ROLE_PROFILES: Record<UserRole, {
     defaultName: 'นายณัฐพล ทวีทรัพย์ (CISA/CISSP)',
     defaultEmail: 'nattapon.admin@localgov.go.th',
     description: 'ตรวจสอบ WAF & Reverse Proxy, ควบคุม Audit Logs, ตั้งค่าสิทธิ์และบัญชีเจ้าหน้าที่',
-    permissions: ['VIEW_WAF_SECURITY', 'VIEW_AUDIT_LOGS', 'EXPORT_AUDIT_LOGS', 'INSPECT_DATABASE_SCHEMA', 'MANAGE_STAFF', 'VIEW_LICENSES'],
+    permissions: ['VIEW_WAF_SECURITY', 'VIEW_AUDIT_LOGS', 'EXPORT_AUDIT_LOGS', 'INSPECT_DATABASE_SCHEMA', 'MANAGE_STAFF', 'VIEW_LICENSES', 'CREATE_LICENSE', 'EDIT_LICENSE'],
   },
   CITIZEN: {
     roleTitle: 'ผู้ประกอบการ / ประชาชนทั่วไป',

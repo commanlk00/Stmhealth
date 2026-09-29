@@ -16,6 +16,7 @@ import {
   FileCheck2,
   Award,
   UserCheck,
+  Edit3,
 } from 'lucide-react';
 import { BusinessCategory, LicenseRecord, LicenseStatus, UserSession } from '../types';
 import { HAZARDOUS_BUSINESS_GROUPS } from '../data/hazardousBusinessData';
@@ -34,6 +35,7 @@ interface LicenseTableProps {
   onOpenDocPreview: (doc: any, license: LicenseRecord) => void;
   currentSession: UserSession;
   onOpenELicense: (license: LicenseRecord) => void;
+  onOpenEditLicense?: (license: LicenseRecord) => void;
 }
 
 export const LicenseTable: React.FC<LicenseTableProps> = ({
@@ -48,6 +50,7 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
   onOpenDocPreview,
   currentSession,
   onOpenELicense,
+  onOpenEditLicense,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -493,6 +496,17 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                         >
                           <Eye className="w-4 h-4" />
                         </button>
+
+                        {/* Edit license */}
+                        {onOpenEditLicense && currentSession.role !== 'CITIZEN' && (
+                          <button
+                            onClick={() => onOpenEditLicense(lic)}
+                            title="แก้ไขข้อมูลใบอนุญาต"
+                            className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 transition-colors"
+                          >
+                            <Edit3 className="w-4 h-4" />
+                          </button>
+                        )}
 
                         {/* Renew */}
                         <button

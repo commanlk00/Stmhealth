@@ -19,6 +19,7 @@ import {
   ExternalLink,
   FileCheck2,
   ShieldAlert,
+  Edit3,
 } from 'lucide-react';
 import { LicenseRecord, UploadedDocument, UserSession } from '../types';
 import { CATEGORY_REQUIREMENTS } from '../data/categoryRequirements';
@@ -37,6 +38,7 @@ interface LicenseDetailModalProps {
   onOpenDocPreview: (doc: UploadedDocument, license: LicenseRecord) => void;
   currentSession: UserSession;
   onOpenELicense: (license: LicenseRecord) => void;
+  onOpenEditLicense?: (license: LicenseRecord) => void;
 }
 
 export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
@@ -50,6 +52,7 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
   onOpenDocPreview,
   currentSession,
   onOpenELicense,
+  onOpenEditLicense,
 }) => {
   if (!license) return null;
 
@@ -89,12 +92,27 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenEditLicense && currentSession.role !== 'CITIZEN' && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenEditLicense(license);
+                }}
+                className="px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-xs transition-colors"
+                title="แก้ไขข้อมูลใบอนุญาตนี้"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>แก้ไขข้อมูล</span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Scrollable Body */}
@@ -417,6 +435,18 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
             >
               <QrCode className="w-3.5 h-3.5" /> ชำระ PromptPay
             </button>
+
+            {onOpenEditLicense && currentSession.role !== 'CITIZEN' && (
+              <button
+                onClick={() => {
+                  onClose();
+                  onOpenEditLicense(license);
+                }}
+                className="px-3 py-2 rounded-lg text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center gap-1.5 shadow-xs transition-colors"
+              >
+                <Edit3 className="w-3.5 h-3.5" /> แก้ไขข้อมูลใบอนุญาต
+              </button>
+            )}
           </div>
 
           <div className="flex items-center space-x-2">

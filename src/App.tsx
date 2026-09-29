@@ -57,6 +57,7 @@ export default function App() {
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState<boolean>(false);
+  const [selectedLicenseForEdit, setSelectedLicenseForEdit] = useState<LicenseRecord | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
   const [isNotificationModalOpen, setIsNotificationModalOpen] = useState<boolean>(false);
@@ -183,6 +184,17 @@ export default function App() {
       showToast('บทบาทของท่านไม่มีสิทธิ์ออกใบอนุญาตใหม่ (เฉพาะเจ้าพนักงานหรือผู้ดูแลระบบ)', 'warning');
       return;
     }
+    setSelectedLicenseForEdit(null);
+    setIsAddModalOpen(true);
+  };
+
+  // Check RBAC permission before editing license
+  const handleOpenEditLicense = (lic: LicenseRecord) => {
+    if (!hasPermission(currentSession.role, 'EDIT_LICENSE')) {
+      showToast('บทบาทของท่านไม่มีสิทธิ์แก้ไขข้อมูลใบอนุญาต (เฉพาะเจ้าหน้าที่หรือผู้ดูแลระบบ)', 'warning');
+      return;
+    }
+    setSelectedLicenseForEdit(lic);
     setIsAddModalOpen(true);
   };
 
@@ -432,26 +444,49 @@ export default function App() {
     }
   };
 
-  // Add new license handler
-  const handleSaveNewLicense = async (newLicense: LicenseRecord) => {
-    updateLicensesState((prev) => [newLicense, ...prev]);
+  // Add or Edit license handler
+  const handleSaveLicense = async (savedLicense: LicenseRecord, isEditing: boolean) => {
+    if (isEditing) {
+      updateLicensesState((prev) =>
+        prev.map((item) => (item.id === savedLicense.id ? savedLicense : item))
+      );
 
-    recordAuditLog({
-      action: 'CREATE_LICENSE',
-      resource: 'LICENSES',
-      resourceId: newLicense.id,
-      actor: currentSession.name,
-      actorRole: currentSession.role,
-      status: 'SUCCESS',
-      details: `ลงทะเบียนและออกใบอนุญาตใหม่เลขที่ ${newLicense.licenseNo} (${newLicense.businessName})`,
-    });
+      // If license detail modal is open for this item, keep it updated
+      setSelectedLicenseForDetail((prev) =>
+        prev && prev.id === savedLicense.id ? savedLicense : prev
+      );
 
-    showToast(`ลงทะเบียนและออกใบอนุญาต ${newLicense.licenseNo} สำเร็จ`);
+      recordAuditLog({
+        action: 'UPDATE_LICENSE',
+        resource: 'LICENSES',
+        resourceId: savedLicense.id,
+        actor: currentSession.name,
+        actorRole: currentSession.role,
+        status: 'SUCCESS',
+        details: `แก้ไขข้อมูลใบอนุญาตเลขที่ ${savedLicense.licenseNo} (${savedLicense.businessName})`,
+      });
+
+      showToast(`บันทึกการแก้ไขข้อมูลใบอนุญาต ${savedLicense.licenseNo} เรียบร้อยแล้ว`);
+    } else {
+      updateLicensesState((prev) => [savedLicense, ...prev]);
+
+      recordAuditLog({
+        action: 'CREATE_LICENSE',
+        resource: 'LICENSES',
+        resourceId: savedLicense.id,
+        actor: currentSession.name,
+        actorRole: currentSession.role,
+        status: 'SUCCESS',
+        details: `ลงทะเบียนและออกใบอนุญาตใหม่เลขที่ ${savedLicense.licenseNo} (${savedLicense.businessName})`,
+      });
+
+      showToast(`ลงทะเบียนและออกใบอนุญาต ${savedLicense.licenseNo} สำเร็จ`);
+    }
 
     // Auto sync to sheet
-    if (token && spreadsheetId && newLicense.syncedToSheet) {
+    if (token && spreadsheetId && savedLicense.syncedToSheet) {
       try {
-        await updateLicenseRenewalInGoogleSheet(token, spreadsheetId, newLicense);
+        await updateLicenseRenewalInGoogleSheet(token, spreadsheetId, savedLicense);
       } catch (e) {
         console.error('Sheet update error', e);
       }
@@ -572,6 +607,7 @@ export default function App() {
           onOpenDocPreview={(doc, lic) => setPreviewDocState({ doc, license: lic })}
           currentSession={currentSession}
           onOpenELicense={(lic) => setSelectedLicenseForELicense(lic)}
+          onOpenEditLicense={(lic) => handleOpenEditLicense(lic)}
         />
       </main>
 
@@ -589,8 +625,12 @@ export default function App() {
       {/* Modals */}
       <AddEditLicenseModal
         isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onSaveLicense={handleSaveNewLicense}
+        onClose={() => {
+          setIsAddModalOpen(false);
+          setSelectedLicenseForEdit(null);
+        }}
+        licenseToEdit={selectedLicenseForEdit}
+        onSaveLicense={handleSaveLicense}
         hasGoogleSheetConnected={Boolean(token && spreadsheetId)}
       />
 
@@ -627,6 +667,7 @@ export default function App() {
         onOpenDocPreview={(doc, lic) => setPreviewDocState({ doc, license: lic })}
         currentSession={currentSession}
         onOpenELicense={(lic) => setSelectedLicenseForELicense(lic)}
+        onOpenEditLicense={(lic) => handleOpenEditLicense(lic)}
       />
 
       <MonthlyReportModal
