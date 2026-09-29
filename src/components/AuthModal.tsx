@@ -14,6 +14,7 @@ import {
   Users,
   Settings,
   X,
+  UserPlus,
 } from 'lucide-react';
 import { UserSession } from '../types';
 import {
@@ -29,6 +30,7 @@ interface AuthModalProps {
   onSelectSession?: (session: UserSession) => void;
   onSessionUpdated?: (session: UserSession) => void;
   onOpenStaffManagement?: () => void;
+  onOpenStaffRegister?: () => void;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -38,6 +40,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   onSelectSession,
   onSessionUpdated,
   onOpenStaffManagement,
+  onOpenStaffRegister,
 }) => {
   const [usernameInput, setUsernameInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -187,7 +190,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     setUsernameInput(e.target.value);
                     setErrorMessage(null);
                   }}
-                  placeholder="เช่น admin, officer, finance, director"
+                  placeholder="เช่น infosser, officer, finance, director"
                   className="w-full px-3.5 py-2.5 text-xs sm:text-sm font-mono border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
@@ -305,6 +308,33 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 </button>
               ))}
             </div>
+          </div>
+
+          {/* New Staff Registration Option */}
+          <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="p-2 bg-blue-600 text-white rounded-lg">
+                <UserPlus className="w-4 h-4" />
+              </div>
+              <div className="text-xs">
+                <div className="font-bold text-blue-950">ยังไม่มีบัญชีเจ้าหน้าที่?</div>
+                <div className="text-[11px] text-blue-700">
+                  ลงทะเบียนสำหรับเจ้าหน้าที่บันทึกข้อมูลเพื่อรอการอนุมัติสิทธิ์
+                </div>
+              </div>
+            </div>
+            {onOpenStaffRegister && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenStaffRegister();
+                }}
+                className="px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-xs transition-colors shrink-0"
+              >
+                ลงทะเบียนใหม่
+              </button>
+            )}
           </div>
 
           {/* Admin Staff Access Management Shortcut */}

@@ -17,8 +17,9 @@ import { AuditLogModal } from './components/AuditLogModal';
 import { DatabaseExplorerModal } from './components/DatabaseExplorerModal';
 import { ELicenseModal } from './components/ELicenseModal';
 import { StaffManagementModal } from './components/StaffManagementModal';
+import { StaffRegisterModal } from './components/StaffRegisterModal';
 import { LicenseRecord, UploadedDocument, UserSession, DigitalSignature } from './types';
-import { getStoredLicenses, saveStoredLicenses } from './data/mockLicenses';
+import { getStoredLicenses, saveStoredLicenses, loadDemoLicenses, clearAllLicenses } from './data/mockLicenses';
 import { googleSignIn, initAuth, logout, signInAsOfficer } from './services/firebaseAuth';
 import { getCurrentSession, saveCurrentSession, hasPermission } from './services/rbacService';
 import { recordAuditLog } from './services/auditLogService';
@@ -65,6 +66,7 @@ export default function App() {
   // Security & Infrastructure Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
+  const [isStaffRegisterModalOpen, setIsStaffRegisterModalOpen] = useState<boolean>(false);
   const [isWAFModalOpen, setIsWAFModalOpen] = useState<boolean>(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
   const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState<boolean>(false);
@@ -108,6 +110,19 @@ export default function App() {
       saveStoredLicenses(updated);
       return updated;
     });
+  };
+
+  // Demo Data handler (Optional import for testing)
+  const handleLoadDemoData = () => {
+    const demos = loadDemoLicenses();
+    setLicenses([...demos]);
+    showToast(`นำเข้าข้อมูลตัวอย่าง ${demos.length} รายการสำหรับทดสอบระบบเรียบร้อย`);
+  };
+
+  const handleClearLicenses = () => {
+    clearAllLicenses();
+    setLicenses([]);
+    showToast('ล้างข้อมูลทั้งหมด ฐานข้อมูลว่างเปล่าพร้อมใช้งานจริง', 'info');
   };
 
   // Google Login Handler
@@ -578,6 +593,7 @@ export default function App() {
         onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
         onOpenStaffModal={() => setIsStaffModalOpen(true)}
+        onOpenStaffRegister={() => setIsStaffRegisterModalOpen(true)}
       />
 
       {/* Page Content Container */}
@@ -608,6 +624,8 @@ export default function App() {
           currentSession={currentSession}
           onOpenELicense={(lic) => setSelectedLicenseForELicense(lic)}
           onOpenEditLicense={(lic) => handleOpenEditLicense(lic)}
+          onOpenAddLicense={handleOpenAddLicense}
+          onLoadDemoData={handleLoadDemoData}
         />
       </main>
 
@@ -717,6 +735,19 @@ export default function App() {
         currentSession={currentSession}
         onSelectSession={handleSessionChange}
         onOpenStaffManagement={() => setIsStaffModalOpen(true)}
+        onOpenStaffRegister={() => setIsStaffRegisterModalOpen(true)}
+      />
+
+      <StaffRegisterModal
+        isOpen={isStaffRegisterModalOpen}
+        onClose={() => setIsStaffRegisterModalOpen(false)}
+        onOpenLogin={() => {
+          setIsStaffRegisterModalOpen(false);
+          setIsAuthModalOpen(true);
+        }}
+        onRegisteredSuccess={() => {
+          showToast('ส่งคำขอลงทะเบียนเจ้าหน้าที่สำเร็จ อยู่ระหว่างรอการอนุมัติสิทธิ์');
+        }}
       />
 
       <StaffManagementModal

@@ -81,6 +81,12 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUploadingDocId, setCurrentUploadingDocId] = useState<string>('');
 
+  // Hazardous business category states
+  const [hazardousGroupCode, setHazardousGroupCode] = useState<string>('group-6');
+  const [hazardousTypeCode, setHazardousTypeCode] = useState<string>('6(1)');
+  const [hazardousSearchQuery, setHazardousSearchQuery] = useState<string>('');
+  const [selectedQuickPick, setSelectedQuickPick] = useState<string>('6(1)');
+
   // Sync form state when modal opens or licenseToEdit changes
   useEffect(() => {
     if (!isOpen) return;
@@ -131,12 +137,6 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
       setHazardousSearchQuery('');
     }
   }, [isOpen, licenseToEdit]);
-
-  // Hazardous business category states
-  const [hazardousGroupCode, setHazardousGroupCode] = useState<string>('group-6');
-  const [hazardousTypeCode, setHazardousTypeCode] = useState<string>('6(1)');
-  const [hazardousSearchQuery, setHazardousSearchQuery] = useState<string>('');
-  const [selectedQuickPick, setSelectedQuickPick] = useState<string>('6(1)');
 
   const selectedHazardousGroup =
     HAZARDOUS_BUSINESS_GROUPS.find((g) => g.id === hazardousGroupCode) ||

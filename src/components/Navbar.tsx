@@ -14,9 +14,12 @@ import {
   UserCheck,
   ChevronDown,
   Users,
+  UserPlus,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { UserSession } from '../types';
+import { canApproveStaff } from '../services/rbacService';
+import { getPendingStaffCount } from '../services/staffService';
 
 interface NavbarProps {
   user: User | null;
@@ -42,6 +45,7 @@ interface NavbarProps {
   onOpenAuditModal: () => void;
   onOpenDatabaseModal: () => void;
   onOpenStaffModal?: () => void;
+  onOpenStaffRegister?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -68,9 +72,12 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenAuditModal,
   onOpenDatabaseModal,
   onOpenStaffModal,
+  onOpenStaffRegister,
 }) => {
   const [showSheetDropdown, setShowSheetDropdown] = useState(false);
   const [showSecurityDropdown, setShowSecurityDropdown] = useState(false);
+  const pendingStaffCount = getPendingStaffCount();
+  const isApprover = canApproveStaff(currentSession.role);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -256,15 +263,36 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>+ เพิ่มใบอนุญาต</span>
             </button>
 
-            {/* Admin Staff Access Management Button */}
-            {(currentSession.role === 'AUDITOR_ADMIN' || currentSession.role === 'DIRECTOR') && onOpenStaffModal && (
+            {/* Staff Self-Registration Button */}
+            {onOpenStaffRegister && (
+              <button
+                onClick={onOpenStaffRegister}
+                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-700 hover:text-blue-700 hover:bg-blue-50 border border-slate-200 transition-colors"
+                title="ลงทะเบียนสำหรับเจ้าหน้าที่บันทึกข้อมูล/เจ้าหน้าที่ใหม่"
+              >
+                <UserPlus className="w-3.5 h-3.5 text-blue-600" />
+                <span>ลงทะเบียนเจ้าหน้าที่</span>
+              </button>
+            )}
+
+            {/* Approver Staff Access Management & Pending Approval Button (ระดับเจ้าพนักงานสาธารณสุขเป็นต้นไป) */}
+            {isApprover && onOpenStaffModal && (
               <button
                 onClick={onOpenStaffModal}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-xs transition-colors"
-                title="ตั้งค่าการเข้าถึงและจัดการบัญชีเจ้าหน้าที่ (Admin Staff Access Control)"
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border shadow-xs transition-colors ${
+                  pendingStaffCount > 0
+                    ? 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 ring-2 ring-amber-400/20'
+                    : 'bg-purple-50 hover:bg-purple-100 text-purple-700 border-purple-200'
+                }`}
+                title="ตรวจสอบคำขอลงทะเบียน อนุมัติ และกำหนดสิทธิ์เจ้าหน้าที่"
               >
-                <Users className="w-3.5 h-3.5 text-purple-600" />
-                <span className="hidden xl:inline">สิทธิ์เจ้าหน้าที่</span>
+                <Users className={`w-3.5 h-3.5 ${pendingStaffCount > 0 ? 'text-amber-600' : 'text-purple-600'}`} />
+                <span className="hidden xl:inline">อนุมัติ/สิทธิ์เจ้าหน้าที่</span>
+                {pendingStaffCount > 0 && (
+                  <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-bold animate-pulse">
+                    รออนุมัติ {pendingStaffCount}
+                  </span>
+                )}
               </button>
             )}
 

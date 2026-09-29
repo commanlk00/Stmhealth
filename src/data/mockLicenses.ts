@@ -434,28 +434,23 @@ export const INITIAL_LICENSES: LicenseRecord[] = [
   },
 ];
 
-const STORAGE_KEY = 'thai_business_licenses_v2';
+export const DEMO_LICENSES: LicenseRecord[] = INITIAL_LICENSES;
+
+const STORAGE_KEY = 'thai_business_licenses_clean_v1';
 
 export function getStoredLicenses(): LicenseRecord[] {
   try {
     const data = localStorage.getItem(STORAGE_KEY);
     if (!data) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_LICENSES));
-      return INITIAL_LICENSES;
+      // Default: clean empty state (ค่าพื้นฐาน ไม่ใส่ข้อมูลตัวอย่าง)
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([]));
+      return [];
     }
     const parsed: LicenseRecord[] = JSON.parse(data);
-    // Ensure all initial IDs are available if storage was from previous version
-    const existingIds = new Set(parsed.map((p) => p.id));
-    const missing = INITIAL_LICENSES.filter((init) => !existingIds.has(init.id));
-    if (missing.length > 0) {
-      const merged = [...parsed, ...missing];
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-      return merged;
-    }
-    return parsed;
+    return Array.isArray(parsed) ? parsed : [];
   } catch (err) {
     console.error('Failed to load licenses from storage', err);
-    return INITIAL_LICENSES;
+    return [];
   }
 }
 
@@ -465,4 +460,14 @@ export function saveStoredLicenses(licenses: LicenseRecord[]): void {
   } catch (err) {
     console.error('Failed to save licenses to storage', err);
   }
+}
+
+export function loadDemoLicenses(): LicenseRecord[] {
+  saveStoredLicenses(DEMO_LICENSES);
+  return DEMO_LICENSES;
+}
+
+export function clearAllLicenses(): LicenseRecord[] {
+  saveStoredLicenses([]);
+  return [];
 }

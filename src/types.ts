@@ -5,8 +5,9 @@ export type BusinessCategory =
   | 'WASTE_MANAGEMENT'; // 7.4 กิจการรับทำการเก็บ ขน หรือกำจัดสิ่งปฏิกูล/มูลฝอย
 
 export interface HazardousBusinessTypeItem {
-  code: string; // e.g. "6(1)"
-  name: string; // ชื่อเต็มตามประกาศกระทรวง
+  code: string; // e.g. "1(1) 1.1.1"
+  subCategory?: string; // e.g. "(1) การเพาะพันธุ์ เลี้ยง และการอนุบาลสัตว์ทุกชนิด"
+  name: string; // ชื่อเต็มตามประกาศ/ข้อบัญญัติ
   shortName: string; // ชื่อเรียกสั้น
   typicalFee: number; // อัตราค่าธรรมเนียมมาตรฐาน (บาท)
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -29,13 +30,14 @@ export type LicenseStatus = 'active' | 'expiring_soon' | 'expired' | 'renewing' 
 
 // User Roles for Role-Based Access Control (RBAC)
 export type UserRole =
-  | 'OFFICER' // เจ้าพนักงานสาธารณสุขปฏิบัติการ (ตรวจสถานที่/ตรวจเอกสาร)
+  | 'DATA_ENTRY' // เจ้าหน้าที่บันทึกข้อมูล (รับคำขอ/กรอกข้อมูล/อัปโหลดเอกสาร)
+  | 'OFFICER' // เจ้าพนักงานสาธารณสุขปฏิบัติการ (ตรวจสถานที่/ตรวจเอกสาร/อนุมัติเจ้าหน้าที่)
   | 'FINANCE' // เจ้าพนักงานการเงินและบัญชี (ตรวจสลิป/รับชำระเงิน/ออกใบเสร็จ)
   | 'DIRECTOR' // ผู้อำนวยการกอง/นายกเทศมนตรี (ผู้อนุมัติ/ลงนามดิจิทัล E-Signature)
   | 'AUDITOR_ADMIN' // ผู้ดูแลระบบและตรวจสอบความปลอดภัย (WAF/Audit Logs 90 วัน/จัดการสิทธิ์เจ้าหน้าที่)
   | 'CITIZEN'; // ผู้ประกอบการ / ประชาชน
 
-export type StaffAccountStatus = 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
+export type StaffAccountStatus = 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'INACTIVE' | 'REJECTED';
 
 export interface StaffAccount {
   id: string;
@@ -53,6 +55,12 @@ export interface StaffAccount {
   createdAt: string;
   lastLoginAt?: string;
   notes?: string;
+  requestedRole?: UserRole;
+  requestedReason?: string;
+  registeredAt?: string;
+  approvedBy?: string;
+  approvedAt?: string;
+  rejectionReason?: string;
 }
 
 export interface UserSession {

@@ -9,13 +9,21 @@ export const ROLE_PROFILES: Record<UserRole, {
   description: string;
   permissions: string[];
 }> = {
+  DATA_ENTRY: {
+    roleTitle: 'เจ้าหน้าที่บันทึกข้อมูลคำขอ',
+    department: 'ฝ่ายสุขาภิบาลและอนามัยสิ่งแวดล้อม',
+    defaultName: 'นายธีรพงศ์ บันทึกงาน',
+    defaultEmail: 'teerapong.d@localgov.go.th',
+    description: 'รับเรื่องและบันทึกข้อมูลคำขอรับใบอนุญาต, อัปโหลดเอกสารหลักฐาน, ตรวจสอบข้อมูลเบื้องต้น',
+    permissions: ['VIEW_LICENSES', 'CREATE_LICENSE', 'EDIT_LICENSE', 'UPLOAD_DOCUMENTS'],
+  },
   OFFICER: {
     roleTitle: 'เจ้าพนักงานสาธารณสุขปฏิบัติการ',
     department: 'ฝ่ายสุขาภิบาลและอนามัยสิ่งแวดล้อม',
     defaultName: 'นางสาวจินตนา พรหมประสิทธิ์',
     defaultEmail: 'jintana.p@localgov.go.th',
-    description: 'ตรวจสอบสุขลักษณะสถานประกอบการ, ตรวจสอบเอกสารคำขอ, บันทึกการต่ออายุ',
-    permissions: ['VIEW_LICENSES', 'CREATE_LICENSE', 'EDIT_LICENSE', 'RENEW_LICENSE', 'UPLOAD_DOCUMENTS'],
+    description: 'ตรวจสอบสุขลักษณะสถานประกอบการ, ตรวจสอบเอกสารคำขอ, บันทึกการต่ออายุ, อนุมัติสิทธิ์เจ้าหน้าที่',
+    permissions: ['VIEW_LICENSES', 'CREATE_LICENSE', 'EDIT_LICENSE', 'RENEW_LICENSE', 'UPLOAD_DOCUMENTS', 'MANAGE_STAFF'],
   },
   FINANCE: {
     roleTitle: 'เจ้าพนักงานการเงินและบัญชีชำนาญงาน',
@@ -30,8 +38,8 @@ export const ROLE_PROFILES: Record<UserRole, {
     department: 'สำนักบริหารงานสาธารณสุข',
     defaultName: 'นพ.เกียรติศักดิ์ เจริญผล',
     defaultEmail: 'kiattisak.c@localgov.go.th',
-    description: 'ผู้มีอำนาจลงนามอนุมัติใบอนุญาตดิจิทัล (E-Signature), ตรวจสอบ PDPA เต็มรูปแบบ, อนุมัติการออกใบอนุญาต',
-    permissions: ['ALL_ACCESS', 'SIGN_DIGITAL_LICENSE', 'APPROVE_LICENSE', 'VIEW_FULL_PDPA', 'VIEW_EXECUTIVE_REPORTS'],
+    description: 'ผู้มีอำนาจลงนามอนุมัติใบอนุญาตดิจิทัล (E-Signature), ตรวจสอบ PDPA เต็มรูปแบบ, อนุมัติการออกใบอนุญาต, กำหนดสิทธิ์เจ้าหน้าที่',
+    permissions: ['ALL_ACCESS', 'SIGN_DIGITAL_LICENSE', 'APPROVE_LICENSE', 'VIEW_FULL_PDPA', 'VIEW_EXECUTIVE_REPORTS', 'MANAGE_STAFF'],
   },
   AUDITOR_ADMIN: {
     roleTitle: 'ผู้ดูแลระบบและตรวจสอบความมั่นคงปลอดภัยสารสนเทศ',
@@ -77,7 +85,12 @@ export const getCurrentSession = (): UserSession => {
   };
 };
 
-export const USER_ROLES: UserRole[] = ['OFFICER', 'FINANCE', 'DIRECTOR', 'AUDITOR_ADMIN', 'CITIZEN'];
+export const USER_ROLES: UserRole[] = ['DATA_ENTRY', 'OFFICER', 'FINANCE', 'DIRECTOR', 'AUDITOR_ADMIN', 'CITIZEN'];
+
+// เช็คสิทธิ์ผู้อนุมัติ: ระดับเจ้าพนักงานสาธารณสุขเป็นต้นไป (OFFICER, DIRECTOR, AUDITOR_ADMIN)
+export const canApproveStaff = (role: UserRole): boolean => {
+  return role === 'OFFICER' || role === 'DIRECTOR' || role === 'AUDITOR_ADMIN';
+};
 
 export const setCurrentSession = (session: UserSession) => {
   localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(session));

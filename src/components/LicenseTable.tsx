@@ -17,6 +17,7 @@ import {
   Award,
   UserCheck,
   Edit3,
+  Plus,
 } from 'lucide-react';
 import { BusinessCategory, LicenseRecord, LicenseStatus, UserSession } from '../types';
 import { HAZARDOUS_BUSINESS_GROUPS } from '../data/hazardousBusinessData';
@@ -36,6 +37,8 @@ interface LicenseTableProps {
   currentSession: UserSession;
   onOpenELicense: (license: LicenseRecord) => void;
   onOpenEditLicense?: (license: LicenseRecord) => void;
+  onOpenAddLicense?: () => void;
+  onLoadDemoData?: () => void;
 }
 
 export const LicenseTable: React.FC<LicenseTableProps> = ({
@@ -51,6 +54,8 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
   currentSession,
   onOpenELicense,
   onOpenEditLicense,
+  onOpenAddLicense,
+  onLoadDemoData,
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
@@ -320,7 +325,46 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {filteredLicenses.length === 0 ? (
+            {licenses.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="py-14 text-center">
+                  <div className="max-w-md mx-auto space-y-3">
+                    <div className="w-14 h-14 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto border border-blue-200 shadow-2xs">
+                      <Building2 className="w-7 h-7" />
+                    </div>
+                    <div className="space-y-1">
+                      <h4 className="text-base font-bold text-slate-800">
+                        ยังไม่มีข้อมูลใบอนุญาตในระบบ
+                      </h4>
+                      <p className="text-xs text-slate-500 leading-relaxed">
+                        ฐานข้อมูลว่างเปล่าตามค่าพื้นฐาน (ไม่มีข้อมูลตัวอย่าง) ท่านสามารถเริ่มบันทึกข้อมูลสถานประกอบการ หรือคลิกนำเข้าข้อมูลตัวอย่างเพื่อทดสอบระบบได้
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-center gap-2.5 flex-wrap">
+                      {onOpenAddLicense && currentSession.role !== 'CITIZEN' && (
+                        <button
+                          type="button"
+                          onClick={onOpenAddLicense}
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition-colors"
+                        >
+                          <Plus className="w-4 h-4" />
+                          <span>ลงทะเบียน / ออกใบอนุญาตฉบับแรก</span>
+                        </button>
+                      )}
+                      {onLoadDemoData && currentSession.role !== 'CITIZEN' && (
+                        <button
+                          type="button"
+                          onClick={onLoadDemoData}
+                          className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-medium border border-slate-300 transition-colors"
+                        >
+                          📥 นำเข้าข้อมูลตัวอย่าง (สำหรับทดสอบ)
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            ) : filteredLicenses.length === 0 ? (
               <tr>
                 <td colSpan={7} className="py-12 text-center text-slate-400">
                   <ShieldAlert className="w-8 h-8 mx-auto mb-2 text-slate-300" />

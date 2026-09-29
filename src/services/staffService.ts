@@ -1,7 +1,8 @@
 import { StaffAccount, StaffAccountStatus, UserRole, UserSession } from '../types';
 import { recordAuditLog } from './auditLogService';
+import { ROLE_PROFILES, canApproveStaff } from './rbacService';
 
-const STAFF_STORAGE_KEY = 'gov_staff_accounts_v2';
+const STAFF_STORAGE_KEY = 'gov_staff_accounts_v5';
 
 export interface PermissionDefinition {
   code: string;
@@ -101,22 +102,31 @@ export const SYSTEM_PERMISSIONS: PermissionDefinition[] = [
 const INITIAL_STAFF_ACCOUNTS: StaffAccount[] = [
   {
     id: 'staff-admin-01',
-    username: 'admin',
-    password: 'Admin#2026',
-    name: 'นายณัฐพล ทวีทรัพย์ (CISA/CISSP)',
-    position: 'หัวหน้างานเทคโนโลยีสารสนเทศและความปลอดภัย',
+    username: 'infosser',
+    password: '464272010',
+    name: 'ผู้ดูแลระบบหลัก (System Administrator)',
+    position: 'ผู้ดูแลระบบและตรวจสอบความมั่นคงปลอดภัยสารสนเทศ',
     role: 'AUDITOR_ADMIN',
     roleTitle: 'ผู้ดูแลระบบความปลอดภัยและบัญชีผู้ใช้งาน',
     department: 'ศูนย์เทคโนโลยีสารสนเทศและการสื่อสาร',
-    email: 'nattapon.admin@localgov.go.th',
+    email: 'infosser@localgov.go.th',
     phone: '02-123-4567 ต่อ 101',
     status: 'ACTIVE',
     allowedPermissions: [
       'MANAGE_STAFF',
       'VIEW_LICENSES',
+      'CREATE_LICENSE',
+      'EDIT_LICENSE',
+      'RENEW_LICENSE',
+      'UPLOAD_DOCUMENTS',
       'VIEW_AUDIT_LOGS',
       'VIEW_WAF_SECURITY',
       'VIEW_FULL_PDPA',
+      'VIEW_PAYMENTS',
+      'CONFIRM_PAYMENT',
+      'VIEW_FINANCIAL_REPORTS',
+      'SIGN_DIGITAL_LICENSE',
+      'APPROVE_LICENSE',
     ],
     createdAt: '2026-01-10T08:30:00Z',
     lastLoginAt: '2026-09-16T09:12:00Z',
@@ -213,6 +223,25 @@ const INITIAL_STAFF_ACCOUNTS: StaffAccount[] = [
     lastLoginAt: '2026-09-12T11:00:00Z',
     notes: 'ตรวจสถานประกอบการและต่ออายุใบอนุญาต',
   },
+  {
+    id: 'staff-reg-pending-01',
+    username: 'entry01',
+    password: 'Entry#2026',
+    name: 'นายสมเจตน์ ใจมั่น',
+    position: 'เจ้าหน้าที่บันทึกข้อมูล (ธุรการจ้างเหมา)',
+    role: 'DATA_ENTRY',
+    roleTitle: 'เจ้าหน้าที่บันทึกข้อมูลคำขอ',
+    department: 'ฝ่ายสุขาภิบาลและอนามัยสิ่งแวดล้อม',
+    email: 'somjet.data@localgov.go.th',
+    phone: '089-123-4567',
+    status: 'PENDING',
+    allowedPermissions: ['VIEW_LICENSES', 'CREATE_LICENSE', 'EDIT_LICENSE', 'UPLOAD_DOCUMENTS'],
+    createdAt: '2026-09-28T09:30:00Z',
+    registeredAt: '2026-09-28T09:30:00Z',
+    requestedRole: 'DATA_ENTRY',
+    requestedReason: 'ขอเข้าใช้งานเพื่อบันทึกข้อมูลคำขอรับใบอนุญาตและสแกนอัปโหลดเอกสารหลักฐานของสถานประกอบการ',
+    notes: 'ยื่นคำขอลงทะเบียน รอเจ้าพนักงานสาธารณสุขหรือผู้บริหารตรวจสอบอนุมัติสิทธิ์',
+  },
 ];
 
 // Load staff accounts from storage or init with seeded
@@ -222,7 +251,44 @@ export const getStaffAccounts = (): StaffAccount[] => {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        let hasMasterAdmin = false;
+        let modified = false;
+
+        const updated = parsed.map((acc: StaffAccount) => {
+          if (
+            acc.username.toLowerCase() === 'infosser' ||
+            acc.username.toLowerCase() === 'admin' ||
+            acc.id === 'staff-admin-01' ||
+            acc.role === 'AUDITOR_ADMIN'
+          ) {
+            hasMasterAdmin = true;
+            if (acc.username !== 'infosser' || acc.password !== '464272010' || acc.status !== 'ACTIVE') {
+              modified = true;
+              return {
+                ...acc,
+                username: 'infosser',
+                password: '464272010',
+                status: 'ACTIVE' as const,
+                role: 'AUDITOR_ADMIN' as const,
+              };
+            }
+          }
+          return acc;
+        });
+
+        if (!hasMasterAdmin) {
+          const defaultAdmin = INITIAL_STAFF_ACCOUNTS.find((a) => a.username === 'infosser');
+          if (defaultAdmin) {
+            updated.unshift(defaultAdmin);
+            modified = true;
+          }
+        }
+
+        if (modified) {
+          saveStaffAccounts(updated);
+        }
+
+        return updated;
       }
     }
   } catch (e) {
@@ -390,7 +456,7 @@ export const toggleStaffStatus = (
   const acc = accounts.find((a) => a.id === id);
   if (!acc) return { success: false, error: 'ไม่พบบัญชี' };
 
-  if (acc.username === 'admin' && newStatus === 'SUSPENDED') {
+  if ((acc.username === 'infosser' || acc.username === 'admin') && newStatus === 'SUSPENDED') {
     return { success: false, error: 'ไม่สามารถระงับบัญชีผู้ดูแลระบบหลัก (Master Admin) ได้' };
   }
 
@@ -419,7 +485,7 @@ export const deleteStaffAccount = (
   const acc = accounts.find((a) => a.id === id);
   if (!acc) return { success: false, error: 'ไม่พบบัญชี' };
 
-  if (acc.username === 'admin') {
+  if (acc.username === 'infosser' || acc.username === 'admin') {
     return { success: false, error: 'ไม่สามารถลบบัญชีผู้ดูแลระบบหลัก (Master Admin) ได้' };
   }
 
@@ -465,6 +531,20 @@ export const authenticateStaff = (
   }
 
   // Check account active status
+  if (account.status === 'PENDING') {
+    return {
+      success: false,
+      error: 'บัญชีของท่านอยู่ระหว่างรอการอนุมัติและกำหนดสิทธิ์จากเจ้าพนักงานสาธารณสุขหรือผู้บริหาร',
+    };
+  }
+
+  if (account.status === 'REJECTED') {
+    return {
+      success: false,
+      error: `คำขอลงทะเบียนของท่านไม่ได้รับการอนุมัติ: ${account.rejectionReason || 'ไม่ผ่านเกณฑ์การตรวจสอบ'}`,
+    };
+  }
+
   if (account.status === 'SUSPENDED') {
     recordAuditLog({
       actorName: account.name,
@@ -535,6 +615,13 @@ export const authenticateStaff = (
 // Default permissions fallback per role
 export const getDefaultPermissionsForRole = (role: UserRole): string[] => {
   switch (role) {
+    case 'DATA_ENTRY':
+      return [
+        'VIEW_LICENSES',
+        'CREATE_LICENSE',
+        'EDIT_LICENSE',
+        'UPLOAD_DOCUMENTS',
+      ];
     case 'DIRECTOR':
       return [
         'VIEW_LICENSES',
@@ -544,6 +631,10 @@ export const getDefaultPermissionsForRole = (role: UserRole): string[] => {
         'VIEW_FINANCIAL_REPORTS',
         'VIEW_AUDIT_LOGS',
         'MANAGE_STAFF',
+        'CREATE_LICENSE',
+        'EDIT_LICENSE',
+        'RENEW_LICENSE',
+        'UPLOAD_DOCUMENTS',
       ];
     case 'AUDITOR_ADMIN':
       return [
@@ -552,6 +643,8 @@ export const getDefaultPermissionsForRole = (role: UserRole): string[] => {
         'VIEW_AUDIT_LOGS',
         'VIEW_WAF_SECURITY',
         'VIEW_FULL_PDPA',
+        'CREATE_LICENSE',
+        'EDIT_LICENSE',
       ];
     case 'FINANCE':
       return [
@@ -567,10 +660,197 @@ export const getDefaultPermissionsForRole = (role: UserRole): string[] => {
         'EDIT_LICENSE',
         'RENEW_LICENSE',
         'UPLOAD_DOCUMENTS',
+        'MANAGE_STAFF',
       ];
     case 'CITIZEN':
       return ['VIEW_LICENSES'];
     default:
       return ['VIEW_LICENSES'];
   }
+};
+
+// Staff self-registration function (ลงทะเบียนสำหรับเจ้าหน้าที่บันทึกข้อมูล/เจ้าหน้าที่ใหม่)
+export const registerStaffAccount = (data: {
+  username: string;
+  password: string;
+  name: string;
+  position: string;
+  department: string;
+  email: string;
+  phone?: string;
+  requestedRole: UserRole;
+  requestedReason?: string;
+}): { success: boolean; account?: StaffAccount; error?: string } => {
+  const accounts = getStaffAccounts();
+  const usernameTrimmed = data.username.trim();
+
+  if (!usernameTrimmed) {
+    return { success: false, error: 'กรุณากรอกรหัสประจำตัวผู้ใช้งาน (Username)' };
+  }
+  if (usernameTrimmed.length < 3) {
+    return { success: false, error: 'รหัสผู้ใช้งานต้องมีความยาวอย่างน้อย 3 ตัวอักษร' };
+  }
+
+  // Check unique username
+  const exists = accounts.some(
+    (acc) => acc.username.toLowerCase() === usernameTrimmed.toLowerCase()
+  );
+  if (exists) {
+    return { success: false, error: `รหัสผู้ใช้งาน "${usernameTrimmed}" มีอยู่ในระบบแล้ว กรุณาเลือกรหัสอื่น` };
+  }
+
+  if (!data.password || data.password.length < 6) {
+    return { success: false, error: 'รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร' };
+  }
+
+  if (!data.name || data.name.trim().length === 0) {
+    return { success: false, error: 'กรุณากรอกชื่อ-นามสกุล' };
+  }
+
+  const role = data.requestedRole || 'DATA_ENTRY';
+  const roleProfile = ROLE_PROFILES[role] || ROLE_PROFILES.DATA_ENTRY;
+
+  const newAccount: StaffAccount = {
+    id: `staff-reg-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+    username: usernameTrimmed,
+    password: data.password,
+    name: data.name.trim(),
+    position: data.position?.trim() || 'เจ้าหน้าที่บันทึกข้อมูล',
+    department: data.department?.trim() || 'ฝ่ายสุขาภิบาลและอนามัยสิ่งแวดล้อม',
+    email: data.email?.trim() || '',
+    phone: data.phone?.trim() || '',
+    role: role,
+    roleTitle: roleProfile.roleTitle,
+    status: 'PENDING',
+    allowedPermissions: getDefaultPermissionsForRole(role),
+    createdAt: new Date().toISOString(),
+    registeredAt: new Date().toISOString(),
+    requestedRole: role,
+    requestedReason: data.requestedReason?.trim() || 'ขอเข้าใช้งานเพื่อบันทึกข้อมูลคำขอรับใบอนุญาต',
+    notes: `คำขอลงทะเบียนโดยเจ้าหน้าที่ตนเอง เมื่อ ${new Date().toLocaleDateString('th-TH')}`,
+  };
+
+  const updated = [newAccount, ...accounts];
+  saveStaffAccounts(updated);
+
+  recordAuditLog({
+    actorName: newAccount.name,
+    actorRole: 'DATA_ENTRY',
+    action: 'STAFF_REGISTRATION_SUBMITTED',
+    category: 'AUTH',
+    targetResource: `STAFF_USER:${newAccount.username}`,
+    details: `เจ้าหน้าที่ยื่นคำขอลงทะเบียนใหม่: ${newAccount.name} (${newAccount.username}) ตำแหน่ง: ${newAccount.position} บทบาทที่ขอ: ${newAccount.roleTitle}`,
+    status: 'SUCCESS',
+  });
+
+  return { success: true, account: newAccount };
+};
+
+// Approver (ระดับเจ้าพนักงานสาธารณสุขเป็นต้นไป) approves staff registration and assigns role + fine-grained permissions
+export const approveStaffRegistration = (
+  id: string,
+  approver: { name: string; role: UserRole },
+  assignedRole: UserRole,
+  customPermissions?: string[],
+  notes?: string
+): { success: boolean; account?: StaffAccount; error?: string } => {
+  if (!canApproveStaff(approver.role)) {
+    return {
+      success: false,
+      error: 'ท่านไม่มีสิทธิ์อนุมัติเจ้าหน้าที่ (เฉพาะผู้ใช้งานระดับเจ้าพนักงานสาธารณสุขขึ้นไป)',
+    };
+  }
+
+  const accounts = getStaffAccounts();
+  const index = accounts.findIndex((a) => a.id === id);
+  if (index === -1) {
+    return { success: false, error: 'ไม่พบรายการคำขอลงทะเบียนที่ต้องการอนุมัติ' };
+  }
+
+  const target = accounts[index];
+  const roleProfile = ROLE_PROFILES[assignedRole] || ROLE_PROFILES[target.role];
+  const finalPermissions =
+    customPermissions && customPermissions.length > 0
+      ? customPermissions
+      : getDefaultPermissionsForRole(assignedRole);
+
+  const updated: StaffAccount = {
+    ...target,
+    role: assignedRole,
+    roleTitle: roleProfile.roleTitle,
+    allowedPermissions: finalPermissions,
+    status: 'ACTIVE',
+    approvedBy: `${approver.name} (${approver.role})`,
+    approvedAt: new Date().toISOString(),
+    notes: notes || `อนุมัติและกำหนดสิทธิ์โดย ${approver.name} เมื่อ ${new Date().toLocaleDateString('th-TH')}`,
+  };
+
+  accounts[index] = updated;
+  saveStaffAccounts(accounts);
+
+  recordAuditLog({
+    actorName: approver.name,
+    actorRole: approver.role,
+    action: 'STAFF_REGISTRATION_APPROVED',
+    category: 'AUTH',
+    targetResource: `STAFF_USER:${updated.username}`,
+    details: `ผู้อนุมัติ (${approver.name}) อนุมัติคำขอลงทะเบียนของ ${updated.name} (${updated.username}) กำหนดระดับสิทธิ์เป็น: ${updated.roleTitle} (สิทธิ์: ${finalPermissions.join(', ')})`,
+    status: 'SUCCESS',
+  });
+
+  return { success: true, account: updated };
+};
+
+// Approver rejects staff registration
+export const rejectStaffRegistration = (
+  id: string,
+  approver: { name: string; role: UserRole },
+  reason: string
+): { success: boolean; account?: StaffAccount; error?: string } => {
+  if (!canApproveStaff(approver.role)) {
+    return {
+      success: false,
+      error: 'ท่านไม่มีสิทธิ์ดำเนินการ (เฉพาะผู้ใช้งานระดับเจ้าพนักงานสาธารณสุขขึ้นไป)',
+    };
+  }
+
+  const accounts = getStaffAccounts();
+  const index = accounts.findIndex((a) => a.id === id);
+  if (index === -1) {
+    return { success: false, error: 'ไม่พบรายการคำขอลงทะเบียน' };
+  }
+
+  const target = accounts[index];
+  const updated: StaffAccount = {
+    ...target,
+    status: 'REJECTED',
+    approvedBy: approver.name,
+    approvedAt: new Date().toISOString(),
+    rejectionReason: reason || 'ไม่ผ่านเกณฑ์การตรวจสอบคุณสมบัติ',
+    notes: `ปฏิเสธคำขอโดย ${approver.name}: ${reason || 'ไม่ระบุเหตุผล'}`,
+  };
+
+  accounts[index] = updated;
+  saveStaffAccounts(accounts);
+
+  recordAuditLog({
+    actorName: approver.name,
+    actorRole: approver.role,
+    action: 'STAFF_REGISTRATION_REJECTED',
+    category: 'AUTH',
+    targetResource: `STAFF_USER:${updated.username}`,
+    details: `ผู้อนุมัติ (${approver.name}) ปฏิเสธคำขอลงทะเบียนของ ${updated.name} (${updated.username}) เหตุผล: ${updated.rejectionReason}`,
+    status: 'WARNING',
+  });
+
+  return { success: true, account: updated };
+};
+
+export const getPendingStaffAccounts = (): StaffAccount[] => {
+  const accounts = getStaffAccounts();
+  return accounts.filter((a) => a.status === 'PENDING');
+};
+
+export const getPendingStaffCount = (): number => {
+  return getPendingStaffAccounts().length;
 };
