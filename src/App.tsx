@@ -16,6 +16,7 @@ import { WAFSecurityModal } from './components/WAFSecurityModal';
 import { AuditLogModal } from './components/AuditLogModal';
 import { DatabaseExplorerModal } from './components/DatabaseExplorerModal';
 import { ELicenseModal } from './components/ELicenseModal';
+import { StaffManagementModal } from './components/StaffManagementModal';
 import { LicenseRecord, UploadedDocument, UserSession, DigitalSignature } from './types';
 import { getStoredLicenses, saveStoredLicenses } from './data/mockLicenses';
 import { googleSignIn, initAuth, logout, signInAsOfficer } from './services/firebaseAuth';
@@ -62,6 +63,7 @@ export default function App() {
 
   // Security & Infrastructure Modals
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
   const [isWAFModalOpen, setIsWAFModalOpen] = useState<boolean>(false);
   const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
   const [isDatabaseModalOpen, setIsDatabaseModalOpen] = useState<boolean>(false);
@@ -540,6 +542,7 @@ export default function App() {
         onOpenAuditModal={() => setIsAuditModalOpen(true)}
         onOpenDatabaseModal={() => setIsDatabaseModalOpen(true)}
         onOpenAuthModal={() => setIsAuthModalOpen(true)}
+        onOpenStaffModal={() => setIsStaffModalOpen(true)}
       />
 
       {/* Page Content Container */}
@@ -672,6 +675,13 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         currentSession={currentSession}
         onSelectSession={handleSessionChange}
+        onOpenStaffManagement={() => setIsStaffModalOpen(true)}
+      />
+
+      <StaffManagementModal
+        isOpen={isStaffModalOpen}
+        onClose={() => setIsStaffModalOpen(false)}
+        currentSession={currentSession}
       />
 
       <WAFSecurityModal

@@ -13,6 +13,7 @@ import {
   Database,
   UserCheck,
   ChevronDown,
+  Users,
 } from 'lucide-react';
 import { User } from 'firebase/auth';
 import { UserSession } from '../types';
@@ -40,6 +41,7 @@ interface NavbarProps {
   onOpenWAFModal: () => void;
   onOpenAuditModal: () => void;
   onOpenDatabaseModal: () => void;
+  onOpenStaffModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -65,6 +67,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenWAFModal,
   onOpenAuditModal,
   onOpenDatabaseModal,
+  onOpenStaffModal,
 }) => {
   const [showSheetDropdown, setShowSheetDropdown] = useState(false);
   const [showSecurityDropdown, setShowSecurityDropdown] = useState(false);
@@ -253,12 +256,24 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span>+ เพิ่มใบอนุญาต</span>
             </button>
 
+            {/* Admin Staff Access Management Button */}
+            {(currentSession.role === 'AUDITOR_ADMIN' || currentSession.role === 'DIRECTOR') && onOpenStaffModal && (
+              <button
+                onClick={onOpenStaffModal}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 shadow-xs transition-colors"
+                title="ตั้งค่าการเข้าถึงและจัดการบัญชีเจ้าหน้าที่ (Admin Staff Access Control)"
+              >
+                <Users className="w-3.5 h-3.5 text-purple-600" />
+                <span className="hidden xl:inline">สิทธิ์เจ้าหน้าที่</span>
+              </button>
+            )}
+
             {/* Active RBAC Session Pill & Switcher */}
             <div className="pl-2 border-l border-slate-200 flex items-center space-x-1.5">
               <button
                 onClick={onOpenAuthModal}
                 className="flex items-center gap-2 p-1 px-2.5 rounded-xl border border-slate-200 hover:border-blue-400 bg-slate-50 hover:bg-blue-50/50 transition-all text-left"
-                title="คลิกเพื่อสลับบทบาทเจ้าหน้าที่ (RBAC) หรือเข้าสู่ระบบ ThaID"
+                title="คลิกเพื่อเข้าสู่ระบบเจ้าหน้าที่ (ID & Password) หรือสลับบัญชีผู้ใช้งาน"
               >
                 <div
                   className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[11px] font-bold ${
@@ -273,7 +288,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                       : 'bg-blue-600'
                   }`}
                 >
-                  {currentSession.role === 'CITIZEN' ? 'TH' : currentSession.role.slice(0, 2)}
+                  {currentSession.role === 'CITIZEN' ? 'CT' : currentSession.role.slice(0, 2)}
                 </div>
                 <div className="hidden sm:block">
                   <div className="text-[11px] font-bold text-slate-800 leading-tight truncate max-w-[120px]">

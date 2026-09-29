@@ -38,20 +38,20 @@ export const ROLE_PROFILES: Record<UserRole, {
     department: 'ศูนย์เทคโนโลยีสารสนเทศและการสื่อสาร',
     defaultName: 'นายณัฐพล ทวีทรัพย์ (CISA/CISSP)',
     defaultEmail: 'nattapon.admin@localgov.go.th',
-    description: 'ตรวจสอบ WAF & Reverse Proxy, ควบคุม Audit Logs ไม่น้อยกว่า 90 วันตาม พ.ร.บ. คอมพิวเตอร์ฯ, ตรวจสอบความปลอดภัย DB',
-    permissions: ['VIEW_WAF_SECURITY', 'VIEW_AUDIT_LOGS', 'EXPORT_AUDIT_LOGS', 'INSPECT_DATABASE_SCHEMA'],
+    description: 'ตรวจสอบ WAF & Reverse Proxy, ควบคุม Audit Logs, ตั้งค่าสิทธิ์และบัญชีเจ้าหน้าที่',
+    permissions: ['VIEW_WAF_SECURITY', 'VIEW_AUDIT_LOGS', 'EXPORT_AUDIT_LOGS', 'INSPECT_DATABASE_SCHEMA', 'MANAGE_STAFF', 'VIEW_LICENSES'],
   },
   CITIZEN: {
-    roleTitle: 'ผู้ประกอบการ / ประชาชน (ยืนยันผ่าน ThaID)',
-    department: 'ประชาชนผู้ใช้บริการระบบอิเล็กทรอนิกส์',
+    roleTitle: 'ผู้ประกอบการ / ประชาชนทั่วไป',
+    department: 'ประชาชนผู้ขอรับใบอนุญาต',
     defaultName: 'นายสมชาย วัฒนพาณิชย์',
     defaultEmail: 'somchai.cleanfoods@gmail.com',
-    description: 'เข้าดูใบอนุญาตของตนเองผ่าน ThaID/OTP, ชำระค่าธรรมเนียม PromptPay, ดาวน์โหลด E-License PDF/A',
+    description: 'เข้าดูใบอนุญาตของตนเอง, ชำระค่าธรรมเนียม PromptPay, ดาวน์โหลด E-License PDF/A',
     permissions: ['VIEW_OWN_LICENSE', 'PAY_PROMPTPAY', 'DOWNLOAD_E_LICENSE', 'REQUEST_RENEWAL'],
   },
 };
 
-const SESSION_STORAGE_KEY = 'gov_current_user_session_v1';
+const SESSION_STORAGE_KEY = 'gov_current_user_session_v2';
 
 export const getCurrentSession = (): UserSession => {
   try {
@@ -61,17 +61,19 @@ export const getCurrentSession = (): UserSession => {
     // fallback
   }
 
-  // Default initial session: OFFICER
+  // Default initial session: ADMIN or OFFICER
   const defaultOfficer = ROLE_PROFILES.OFFICER;
   return {
-    id: 'usr-officer-01',
+    id: 'staff-officer-01',
+    username: 'officer',
     name: defaultOfficer.defaultName,
     role: 'OFFICER',
     roleTitle: defaultOfficer.roleTitle,
     department: defaultOfficer.department,
     email: defaultOfficer.defaultEmail,
-    authMethod: '2FA_CREDENTIAL',
+    authMethod: 'PASSWORD_LOGIN',
     is2FAVerified: true,
+    allowedPermissions: defaultOfficer.permissions,
   };
 };
 
@@ -83,11 +85,11 @@ export const setCurrentSession = (session: UserSession) => {
   recordAuditLog({
     actorName: session.name,
     actorRole: session.role,
-    actorIp: session.authMethod === 'THAID' ? '171.96.12.88 (Mobile ThaID)' : '203.144.144.15 (GovNet)',
+    actorIp: '203.144.144.15 (GovNet)',
     action: `USER_SESSION_SWITCH: ${session.role}`,
     category: 'AUTH',
     targetResource: 'RBAC_CONTROLLER',
-    details: `เปลี่ยนผู้ใช้งานเป็น ${session.name} (${session.roleTitle}) ผ่านวิธี ${session.authMethod} (2FA: ${session.is2FAVerified ? 'Verified' : 'Pending'})`,
+    details: `เปลี่ยนผู้ใช้งานเป็น ${session.name} (${session.roleTitle}) ผ่านวิธี ${session.authMethod}`,
     status: 'SUCCESS',
   });
 };
@@ -96,7 +98,15 @@ export const saveCurrentSession = setCurrentSession;
 
 // Permission checking helpers
 export const hasPermission = (target: UserSession | UserRole, permission: string): boolean => {
-  const role: UserRole = typeof target === 'string' ? target : target.role;
+  if (typeof target === 'object' && target !== null) {
+    if (target.role === 'DIRECTOR') return true;
+    if (Array.isArray(target.allowedPermissions) && target.allowedPermissions.length > 0) {
+      return target.allowedPermissions.includes(permission);
+    }
+    const roleInfo = ROLE_PROFILES[target.role];
+    return roleInfo ? roleInfo.permissions.includes(permission) : false;
+  }
+  const role = target as UserRole;
   if (role === 'DIRECTOR') return true;
   const roleInfo = ROLE_PROFILES[role];
   return roleInfo ? roleInfo.permissions.includes(permission) : false;

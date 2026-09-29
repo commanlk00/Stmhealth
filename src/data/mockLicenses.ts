@@ -5,7 +5,12 @@ export const INITIAL_LICENSES: LicenseRecord[] = [
     id: 'lic-001',
     licenseNo: 'สธ-กอ-2568/0042',
     category: 'HAZARDOUS_HEALTH',
-    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ (อู่เคาะพ่นสีรถยนต์)',
+    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [6(1) อู่เคาะพ่นสีรถยนต์]',
+    hazardousGroup: 'หมวด 6 กิจการที่เกี่ยวกับโลหะหรือแร่',
+    hazardousGroupCode: 'group-6',
+    hazardousType: 'การเคาะ ปะผุ พ่นสี หรือซ่อมแซมตัวถังยานยนต์ (อู่เคาะพ่นสี)',
+    hazardousTypeCode: '6(1)',
+    hazardousRiskLevel: 'HIGH',
     businessName: 'เจริญยนต์ ออโต้เพ้นท์ เซอร์วิส',
     ownerFullName: 'นายสมศักดิ์ วัฒนากิจโกศล',
     ownerNationalId: '1100400892145',
@@ -259,7 +264,12 @@ export const INITIAL_LICENSES: LicenseRecord[] = [
     id: 'lic-006',
     licenseNo: 'สธ-กอ-2568/0098',
     category: 'HAZARDOUS_HEALTH',
-    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ (โรงเลื่อยและแปรรูปไม้)',
+    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [7(1) โรงเลื่อยจักร]',
+    hazardousGroup: 'หมวด 7 กิจการที่เกี่ยวกับไม้',
+    hazardousGroupCode: 'group-7',
+    hazardousType: 'การเลื่อยไม้ (โรงเลื่อยจักร)',
+    hazardousTypeCode: '7(1)',
+    hazardousRiskLevel: 'HIGH',
     businessName: 'โรงเลื่อยไม้ไทยสมบูรณ์การค้า',
     ownerFullName: 'นายอนุชา พงษ์ศิริรักษ์',
     ownerNationalId: '3100600129487',
@@ -269,7 +279,7 @@ export const INITIAL_LICENSES: LicenseRecord[] = [
     contactEmail: 'anucha.thaisomboon@gmail.com',
     issueDate: '2025-09-18',
     expiryDate: '2026-09-18', // ~5 days left (VERY URGENT <= 30 days)
-    feeAmount: 2500,
+    feeAmount: 3500,
     status: 'expiring_soon',
     paymentStatus: 'paid',
     promptpayRef: 'PP-2025-0918-098',
@@ -293,9 +303,138 @@ export const INITIAL_LICENSES: LicenseRecord[] = [
     renewalHistory: [],
     notes: 'ส่งแจ้งเตือนทาง LINE OA และอีเมลแล้ว อยู่ระหว่างผู้ประกอบการเตรียมชำระค่าธรรมเนียมต่ออายุ',
   },
+
+  {
+    id: 'lic-007',
+    licenseNo: 'สธ-กอ-2569/0142',
+    category: 'HAZARDOUS_HEALTH',
+    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [11(1) ปั๊มน้ำมัน]',
+    hazardousGroup: 'หมวด 11 กิจการที่เกี่ยวกับปิโตรเลียม ถ่านหิน สารเคมี',
+    hazardousGroupCode: 'group-11',
+    hazardousType: 'สถานีบริการน้ำมันเชื้อเพลิง (ปั๊มน้ำมัน)',
+    hazardousTypeCode: '11(1)',
+    hazardousRiskLevel: 'HIGH',
+    businessName: 'สถานีบริการน้ำมัน พีทีที คลองหลวง สเตชั่น',
+    ownerFullName: 'นายวิเชียร ธนวัฒนานนท์',
+    ownerNationalId: '1100500293841',
+    idCardAddress: '88/1 หมู่ 5 ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี 12120',
+    businessAddress: '120/4 ถ.พหลโยธิน ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี 12120',
+    contactPhone: '081-998-3344',
+    contactEmail: 'wichian.pttklongluang@gmail.com',
+    issueDate: '2026-01-10',
+    expiryDate: '2027-01-10',
+    feeAmount: 4000,
+    status: 'active',
+    paymentStatus: 'paid',
+    promptpayRef: 'PP-2026-0110-142',
+    paidAt: '2026-01-10 11:30',
+    notification30DaysSent: false,
+    syncedToSheet: true,
+    documents: [
+      {
+        id: 'doc-007-1',
+        name: 'ระบบดักไอน้ำมัน_Stage2.pdf',
+        categoryRequirementId: 'doc_env_safety_plan',
+        docTitle: 'เอกสารรับรองระบบดักไอน้ำมันเชื้อเพลิงและระบบวาล์วฉุกเฉิน',
+        fileType: 'pdf',
+        fileUrl: 'https://images.unsplash.com/photo-1545454675-3531b543be5d?auto=format&fit=crop&w=600&q=80',
+        fileSize: '4.2 MB',
+        uploadDate: '2026-01-05',
+        isVerified: true,
+      },
+    ],
+    renewalHistory: [],
+    notes: 'ผ่านการทดสอบระบบตัดจ่ายน้ำมันฉุกเฉินและติดตั้งถังดับเพลิง 8 จุดครบถ้วน',
+  },
+
+  {
+    id: 'lic-008',
+    licenseNo: 'สธ-กอ-2569/0205',
+    category: 'HAZARDOUS_HEALTH',
+    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [8(2) คาร์แคร์ (Car Care)/ล้างอัดฉีด]',
+    hazardousGroup: 'หมวด 8 กิจการที่เกี่ยวกับการบริการ',
+    hazardousGroupCode: 'group-8',
+    hazardousType: 'สถานที่ล้างอัดฉีดยานพาหนะ หรือคาร์แคร์ (Car Care)',
+    hazardousTypeCode: '8(2)',
+    hazardousRiskLevel: 'MEDIUM',
+    businessName: 'สปีดโปร คาร์ดีเทลลิ่ง เซอร์วิส',
+    ownerFullName: 'นายธนกร วงศ์สุริยา',
+    ownerNationalId: '1103700592814',
+    idCardAddress: '31/2 ซอยประชาชื่น 12 แขวงวงศ์สว่าง เขตบางซื่อ กรุงเทพมหานคร 10800',
+    businessAddress: '45/18 ถนนเลียบคลองรังสิต ต.ประชาธิปัตย์ อ.ธัญบุรี จ.ปทุมธานี 12130',
+    contactPhone: '086-332-1199',
+    contactEmail: 'speedpro.cardetailing@gmail.com',
+    issueDate: '2026-02-15',
+    expiryDate: '2027-02-15',
+    feeAmount: 2000,
+    status: 'active',
+    paymentStatus: 'paid',
+    promptpayRef: 'PP-2026-0215-205',
+    paidAt: '2026-02-15 15:40',
+    notification30DaysSent: false,
+    syncedToSheet: true,
+    documents: [
+      {
+        id: 'doc-008-1',
+        name: 'ผังบ่อดักไขมันและคราบน้ำมัน.pdf',
+        categoryRequirementId: 'doc_env_safety_plan',
+        docTitle: 'ผังระบบบ่อดักคราบน้ำมันและบ่อตกตะกอนทราย',
+        fileType: 'pdf',
+        fileUrl: 'https://images.unsplash.com/photo-1520340356584-f9917d1eea6f?auto=format&fit=crop&w=600&q=80',
+        fileSize: '2.5 MB',
+        uploadDate: '2026-02-10',
+        isVerified: true,
+      },
+    ],
+    renewalHistory: [],
+    notes: 'ติดตั้งบ่อดักตะกอน 3 ตอน พร้อมม่านกันละอองน้ำรอบทิศทาง',
+  },
+
+  {
+    id: 'lic-009',
+    licenseNo: 'สธ-กอ-2569/0312',
+    category: 'HAZARDOUS_HEALTH',
+    categoryLabel: '7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [1(1) ฟาร์มสัตว์ปีก (ไก่)]',
+    hazardousGroup: 'หมวด 1 กิจการที่เกี่ยวกับการเลี้ยงสัตว์',
+    hazardousGroupCode: 'group-1',
+    hazardousType: 'การเลี้ยงสัตว์ปีก เช่น ไก่ เป็ด ห่าน นกกระทา หรือนกกระจอกเทศ',
+    hazardousTypeCode: '1(1)',
+    hazardousRiskLevel: 'HIGH',
+    businessName: 'ศรีวิไล ฟาร์มไก่ไข่มาตรฐานสุขาภิบาล',
+    ownerFullName: 'นางวิไลพร ประเสริฐโสภา',
+    ownerNationalId: '3101200485912',
+    idCardAddress: '15 หมู่ 7 ต.หนองเสือ อ.หนองเสือ จ.ปทุมธานี 12170',
+    businessAddress: '15/3 หมู่ 7 ต.หนองเสือ อ.หนองเสือ จ.ปทุมธานี 12170',
+    contactPhone: '089-112-4455',
+    contactEmail: 'sriwilai.poultry@gmail.com',
+    issueDate: '2026-03-01',
+    expiryDate: '2027-03-01',
+    feeAmount: 2000,
+    status: 'active',
+    paymentStatus: 'paid',
+    promptpayRef: 'PP-2026-0301-312',
+    paidAt: '2026-03-01 09:15',
+    notification30DaysSent: false,
+    syncedToSheet: true,
+    documents: [
+      {
+        id: 'doc-009-1',
+        name: 'ระบบบำบัดกลิ่นมูลไก่ชีวภาพ.pdf',
+        categoryRequirementId: 'doc_env_safety_plan',
+        docTitle: 'มาตรการควบคุมกลิ่นและตาข่ายกันนกภายนอกโรงเรือนปิด',
+        fileType: 'pdf',
+        fileUrl: 'https://images.unsplash.com/photo-1548550023-2bdb3c5beed7?auto=format&fit=crop&w=600&q=80',
+        fileSize: '3.1 MB',
+        uploadDate: '2026-02-24',
+        isVerified: true,
+      },
+    ],
+    renewalHistory: [],
+    notes: 'โรงเรือนระบบปิด Evaporative Cooling System ควบคุมกลิ่นและฝุ่นละอองดีเยี่ยม',
+  },
 ];
 
-const STORAGE_KEY = 'thai_business_licenses_v1';
+const STORAGE_KEY = 'thai_business_licenses_v2';
 
 export function getStoredLicenses(): LicenseRecord[] {
   try {
@@ -304,7 +443,16 @@ export function getStoredLicenses(): LicenseRecord[] {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(INITIAL_LICENSES));
       return INITIAL_LICENSES;
     }
-    return JSON.parse(data);
+    const parsed: LicenseRecord[] = JSON.parse(data);
+    // Ensure all initial IDs are available if storage was from previous version
+    const existingIds = new Set(parsed.map((p) => p.id));
+    const missing = INITIAL_LICENSES.filter((init) => !existingIds.has(init.id));
+    if (missing.length > 0) {
+      const merged = [...parsed, ...missing];
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      return merged;
+    }
+    return parsed;
   } catch (err) {
     console.error('Failed to load licenses from storage', err);
     return INITIAL_LICENSES;

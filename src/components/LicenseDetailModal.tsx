@@ -18,9 +18,11 @@ import {
   FileSpreadsheet,
   ExternalLink,
   FileCheck2,
+  ShieldAlert,
 } from 'lucide-react';
 import { LicenseRecord, UploadedDocument, UserSession } from '../types';
 import { CATEGORY_REQUIREMENTS } from '../data/categoryRequirements';
+import { findHazardousTypeByCode } from '../data/hazardousBusinessData';
 import { evaluateLicenseStatus, formatCurrency, formatThaiDate } from '../utils/licenseUtils';
 import { maskNationalId } from '../services/maskingService';
 
@@ -181,6 +183,45 @@ export const LicenseDetailModal: React.FC<LicenseDetailModalProps> = ({
                 <span className="text-slate-400 block text-[11px]">ที่อยู่สถานประกอบการ:</span>
                 <span className="text-slate-700 leading-relaxed">{license.businessAddress}</span>
               </div>
+
+              {/* Hazardous Business classification badges */}
+              {license.category === 'HAZARDOUS_HEALTH' && (
+                <div className="p-2.5 bg-amber-50/70 border border-amber-200 rounded-lg space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-amber-900 flex items-center gap-1 text-[11px]">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+                      <span>{license.hazardousGroup || 'กิจการที่เป็นอันตรายต่อสุขภาพ'}</span>
+                    </span>
+                    {license.hazardousTypeCode && (
+                      <span className="px-1.5 py-0.5 rounded bg-amber-200 text-amber-900 text-[10px] font-mono font-bold">
+                        รหัส {license.hazardousTypeCode}
+                      </span>
+                    )}
+                  </div>
+                  {license.hazardousType && (
+                    <div className="text-[11px] text-slate-800 font-medium">
+                      {license.hazardousType}
+                    </div>
+                  )}
+                  {license.hazardousRiskLevel && (
+                    <div className="pt-0.5">
+                      <span
+                        className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          license.hazardousRiskLevel === 'HIGH'
+                            ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                            : license.hazardousRiskLevel === 'MEDIUM'
+                            ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                        }`}
+                      >
+                        {license.hazardousRiskLevel === 'HIGH' && '⚠️ ความเสี่ยงสูง (High Risk)'}
+                        {license.hazardousRiskLevel === 'MEDIUM' && '⚡ ความเสี่ยงปานกลาง'}
+                        {license.hazardousRiskLevel === 'LOW' && '✓ ความเสี่ยงต่ำ'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {license.areaSquareMeters && (
                 <div>

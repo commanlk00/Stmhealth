@@ -11,9 +11,30 @@ import {
   CheckCircle2,
   Sparkles,
   FileSpreadsheet,
+  Search,
+  ShieldAlert,
+  Flame,
+  Check,
+  Tag,
+  Info,
+  Layers,
+  ChevronRight,
 } from 'lucide-react';
-import { BusinessCategory, FoodEstablishmentSubtype, LicenseRecord, UploadedDocument } from '../types';
+import {
+  BusinessCategory,
+  FoodEstablishmentSubtype,
+  LicenseRecord,
+  UploadedDocument,
+  HazardousBusinessGroup,
+  HazardousBusinessTypeItem,
+} from '../types';
 import { CATEGORY_REQUIREMENTS } from '../data/categoryRequirements';
+import {
+  HAZARDOUS_BUSINESS_GROUPS,
+  POPULAR_HAZARDOUS_TYPES,
+  searchHazardousBusinesses,
+  findHazardousTypeByCode,
+} from '../data/hazardousBusinessData';
 import { formatCurrency } from '../utils/licenseUtils';
 
 interface AddEditLicenseModalProps {
@@ -57,6 +78,38 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [currentUploadingDocId, setCurrentUploadingDocId] = useState<string>('');
 
+  // Hazardous business category states
+  const [hazardousGroupCode, setHazardousGroupCode] = useState<string>('group-6');
+  const [hazardousTypeCode, setHazardousTypeCode] = useState<string>('6(1)');
+  const [hazardousSearchQuery, setHazardousSearchQuery] = useState<string>('');
+  const [selectedQuickPick, setSelectedQuickPick] = useState<string>('6(1)');
+
+  const selectedHazardousGroup =
+    HAZARDOUS_BUSINESS_GROUPS.find((g) => g.id === hazardousGroupCode) ||
+    HAZARDOUS_BUSINESS_GROUPS[5]; // default group-6
+
+  const selectedHazardousType =
+    selectedHazardousGroup.types.find((t) => t.code === hazardousTypeCode) ||
+    selectedHazardousGroup.types[0];
+
+  const searchResults = hazardousSearchQuery.trim()
+    ? searchHazardousBusinesses(hazardousSearchQuery)
+    : [];
+
+  const handleSelectQuickPick = (item: (typeof POPULAR_HAZARDOUS_TYPES)[0]) => {
+    setHazardousGroupCode(item.groupId);
+    setHazardousTypeCode(item.code);
+    setSelectedQuickPick(item.code);
+    setHazardousSearchQuery('');
+  };
+
+  const handleSelectSearchResult = (result: ReturnType<typeof searchHazardousBusinesses>[0]) => {
+    setHazardousGroupCode(result.groupId);
+    setHazardousTypeCode(result.code);
+    setSelectedQuickPick(result.code);
+    setHazardousSearchQuery('');
+  };
+
   // 7.2 Food rule determination: > 200 sqm vs <= 200 sqm
   const isFoodCategory = category === 'FOOD_ESTABLISHMENT';
   const foodSubtype: FoodEstablishmentSubtype =
@@ -76,15 +129,28 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
     setOcrScanning(true);
     setTimeout(() => {
       setOcrScanning(false);
-      setBusinessName('ร้านสยามดีไลท์ บิสโทร');
-      setOwnerFullName('นางสาวณัฐธิดา ศิริโรจน์กุล');
-      setOwnerNationalId('1103700482915');
-      setIdCardAddress('128/4 หมู่ 2 ต.คลองหก อ.คลองหลวง จ.ปทุมธานี 12120');
-      setBusinessAddress('55/8 ถนนพหลโยธิน ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี 12120');
-      setContactPhone('089-445-6677');
-      setContactEmail('nutthida.siamdelight@gmail.com');
-      setAreaSquareMeters(240); // Will trigger > 200 sqm!
-    }, 1000);
+      if (category === 'HAZARDOUS_HEALTH') {
+        setBusinessName('เจริญการช่าง ออโต้เพ้นท์ เซอร์วิส');
+        setOwnerFullName('นายธีรภัทร อัครเดชานันท์');
+        setOwnerNationalId('1100400892145');
+        setHazardousGroupCode('group-6');
+        setHazardousTypeCode('6(1)');
+        setSelectedQuickPick('6(1)');
+        setIdCardAddress('142/5 หมู่ 3 ต.บางกระสอ อ.เมือง จ.นนทบุรี 11000');
+        setBusinessAddress('88/12 ถนนรัตนาธิเบศร์ ต.บางกระสอ อ.เมือง จ.นนทบุรี 11000');
+        setContactPhone('081-456-7890');
+        setContactEmail('teerapat.charoenauto@gmail.com');
+      } else {
+        setBusinessName('ร้านสยามดีไลท์ บิสโทร');
+        setOwnerFullName('นางสาวณัฐธิดา ศิริโรจน์กุล');
+        setOwnerNationalId('1103700482915');
+        setIdCardAddress('128/4 หมู่ 2 ต.คลองหก อ.คลองหลวง จ.ปทุมธานี 12120');
+        setBusinessAddress('55/8 ถนนพหลโยธิน ต.คลองหนึ่ง อ.คลองหลวง จ.ปทุมธานี 12120');
+        setContactPhone('089-445-6677');
+        setContactEmail('nutthida.siamdelight@gmail.com');
+        setAreaSquareMeters(240); // Will trigger > 200 sqm!
+      }
+    }, 800);
   };
 
   const handleFileUpload = (docId: string, docTitle: string, e: React.ChangeEvent<HTMLInputElement>) => {
@@ -120,12 +186,26 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
 
     setIsSaving(true);
 
+    const isHazardous = category === 'HAZARDOUS_HEALTH';
+    const finalFee = isHazardous && selectedHazardousType
+      ? selectedHazardousType.typicalFee
+      : currentRule.standardAnnualFee;
+
+    const finalCategoryLabel = isHazardous && selectedHazardousType
+      ? `7.1 กิจการที่เป็นอันตรายต่อสุขภาพ [${selectedHazardousType.code} ${selectedHazardousType.shortName}]`
+      : currentRule.title;
+
     const newLicense: LicenseRecord = {
       id: `lic-${Date.now()}`,
       licenseNo: licenseNo,
       category: category,
-      categoryLabel: currentRule.title,
+      categoryLabel: finalCategoryLabel,
       foodSubtype: isFoodCategory ? foodSubtype : undefined,
+      hazardousGroup: isHazardous ? selectedHazardousGroup.name : undefined,
+      hazardousGroupCode: isHazardous ? selectedHazardousGroup.id : undefined,
+      hazardousType: isHazardous && selectedHazardousType ? selectedHazardousType.name : undefined,
+      hazardousTypeCode: isHazardous && selectedHazardousType ? selectedHazardousType.code : undefined,
+      hazardousRiskLevel: isHazardous && selectedHazardousType ? selectedHazardousType.riskLevel : undefined,
       businessName: businessName,
       areaSquareMeters: isFoodCategory ? Number(areaSquareMeters) : undefined,
       ownerFullName: ownerFullName,
@@ -136,7 +216,7 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
       contactEmail: contactEmail,
       issueDate: issueDate,
       expiryDate: expiryDate,
-      feeAmount: currentRule.standardAnnualFee,
+      feeAmount: finalFee,
       status: 'active',
       documents: uploadedDocs,
       paymentStatus: 'paid',
@@ -289,7 +369,222 @@ export const AddEditLicenseModal: React.FC<AddEditLicenseModalProps> = ({
               </label>
             </div>
 
-            {/* Condition 7.2 Area Calculation Rule */}
+            {/* Condition 7.1 กิจการที่เป็นอันตรายต่อสุขภาพ Selection Panel */}
+            {category === 'HAZARDOUS_HEALTH' && (
+              <div className="p-4 bg-white rounded-xl border border-blue-200 space-y-3.5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-1.5 font-bold text-slate-900 text-xs sm:text-sm">
+                    <ShieldAlert className="w-4 h-4 text-amber-600" />
+                    <span>ตัวเลือกหมวดและประเภทกิจการที่เป็นอันตรายต่อสุขภาพ</span>
+                  </div>
+                  <span className="text-[11px] text-slate-500 font-medium bg-slate-100 px-2 py-0.5 rounded-full">
+                    พ.ร.บ. การสาธารณสุข ๑๓ หมวด
+                  </span>
+                </div>
+
+                {/* Search Bar for 13 Groups */}
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
+                    <Search className="w-3.5 h-3.5" />
+                  </div>
+                  <input
+                    type="text"
+                    value={hazardousSearchQuery}
+                    onChange={(e) => setHazardousSearchQuery(e.target.value)}
+                    placeholder="พิมพ์ค้นหากิจการ เช่น พ่นสี, คาร์แคร์, หอพัก, ปั๊มน้ำมัน, สุกร, ไก่, โรงสี, ซักรีด..."
+                    className="w-full pl-8 pr-8 py-2 border border-slate-300 rounded-lg text-xs bg-slate-50/50 focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                  />
+                  {hazardousSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setHazardousSearchQuery('')}
+                      className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+
+                  {/* Search Results Dropdown/Box */}
+                  {hazardousSearchQuery.trim() && (
+                    <div className="absolute z-20 left-0 right-0 mt-1 max-h-56 overflow-y-auto bg-white rounded-lg shadow-xl border border-slate-200 p-1 text-xs space-y-1">
+                      <div className="p-1.5 text-[11px] text-slate-500 font-medium bg-slate-50 rounded">
+                        พบ {searchResults.length} รายการที่ตรงกับ "{hazardousSearchQuery}"
+                      </div>
+                      {searchResults.length === 0 ? (
+                        <div className="p-3 text-center text-slate-400 text-xs">
+                          ไม่พบกิจการที่ตรงกับคำค้นหา
+                        </div>
+                      ) : (
+                        searchResults.map((res) => (
+                          <button
+                            key={`${res.groupId}-${res.code}`}
+                            type="button"
+                            onClick={() => handleSelectSearchResult(res)}
+                            className="w-full text-left p-2 rounded-md hover:bg-blue-50 flex items-start justify-between gap-2 border border-transparent hover:border-blue-200 transition-colors"
+                          >
+                            <div>
+                              <div className="font-semibold text-slate-900 flex items-center gap-1.5">
+                                <span className="px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 text-[10px] font-mono">
+                                  {res.code}
+                                </span>
+                                <span>{res.shortName}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
+                                {res.name}
+                              </div>
+                              <div className="text-[10px] text-slate-400 mt-0.5">
+                                {res.groupName}
+                              </div>
+                            </div>
+                            <span className="text-[11px] font-bold text-emerald-700 whitespace-nowrap shrink-0">
+                              {formatCurrency(res.typicalFee)}
+                            </span>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Quick Picks (10 Most Popular Businesses) */}
+                <div className="space-y-1.5">
+                  <div className="text-[11px] font-semibold text-slate-600 flex items-center gap-1">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                    <span>กิจการยอดนิยมที่พบบ่อย (คลิกเลือกด่วน):</span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+                    {POPULAR_HAZARDOUS_TYPES.map((item) => {
+                      const isSelected =
+                        hazardousGroupCode === item.groupId && hazardousTypeCode === item.code;
+                      return (
+                        <button
+                          key={item.code}
+                          type="button"
+                          onClick={() => handleSelectQuickPick(item)}
+                          className={`px-2 py-1 rounded-md text-[11px] font-medium transition-all flex items-center gap-1 border ${
+                            isSelected
+                              ? 'bg-blue-600 text-white border-blue-600 shadow-2xs font-semibold'
+                              : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-blue-50 hover:border-blue-300'
+                          }`}
+                        >
+                          <span className={`text-[10px] font-mono ${isSelected ? 'text-blue-100' : 'text-slate-500'}`}>
+                            {item.code}
+                          </span>
+                          <span>{item.shortName}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* 2-Step Dropdowns: หมวด (13 หมวด) & กิจการย่อย */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      ๑. เลือกหมวดกิจการ (13 หมวดตามกฎหมาย):
+                    </label>
+                    <select
+                      value={hazardousGroupCode}
+                      onChange={(e) => {
+                        const newGroupId = e.target.value;
+                        setHazardousGroupCode(newGroupId);
+                        const group = HAZARDOUS_BUSINESS_GROUPS.find((g) => g.id === newGroupId);
+                        if (group && group.types.length > 0) {
+                          setHazardousTypeCode(group.types[0].code);
+                          setSelectedQuickPick(group.types[0].code);
+                        }
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 bg-white focus:ring-1 focus:ring-blue-500"
+                    >
+                      {HAZARDOUS_BUSINESS_GROUPS.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name} ({group.types.length} ประเภท)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                      ๒. เลือกประเภทกิจการย่อย:
+                    </label>
+                    <select
+                      value={hazardousTypeCode}
+                      onChange={(e) => {
+                        setHazardousTypeCode(e.target.value);
+                        setSelectedQuickPick(e.target.value);
+                      }}
+                      className="w-full p-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-800 bg-white focus:ring-1 focus:ring-blue-500"
+                    >
+                      {selectedHazardousGroup.types.map((type) => (
+                        <option key={type.code} value={type.code}>
+                          {type.code} {type.shortName} - {formatCurrency(type.typicalFee)}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Selected Item Highlights & Requirements Box */}
+                {selectedHazardousType && (
+                  <div className="p-3 bg-gradient-to-r from-blue-50/80 to-slate-50 rounded-xl border border-blue-200/80 space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pb-2 border-b border-blue-200/60">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2 py-0.5 rounded font-mono font-bold text-xs bg-blue-700 text-white">
+                            รหัส {selectedHazardousType.code}
+                          </span>
+                          <span className="font-bold text-slate-900 text-xs sm:text-sm">
+                            {selectedHazardousType.shortName}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-slate-600 mt-1 leading-snug">
+                          {selectedHazardousType.name}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            selectedHazardousType.riskLevel === 'HIGH'
+                              ? 'bg-rose-100 text-rose-800 border border-rose-300'
+                              : selectedHazardousType.riskLevel === 'MEDIUM'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                          }`}
+                        >
+                          {selectedHazardousType.riskLevel === 'HIGH' && '⚠️ ความเสี่ยงสูง'}
+                          {selectedHazardousType.riskLevel === 'MEDIUM' && '⚡ ความเสี่ยงปานกลาง'}
+                          {selectedHazardousType.riskLevel === 'LOW' && '✓ ความเสี่ยงต่ำ'}
+                        </span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {formatCurrency(selectedHazardousType.typicalFee)}/ปี
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Specific Sanitation & Pollution Control Requirements */}
+                    <div>
+                      <div className="text-[11px] font-bold text-slate-700 mb-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-600" />
+                        <span>เกณฑ์การตรวจประเมินสุขาภิบาลและควบคุมมลพิษเฉพาะกิจการ:</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pl-1">
+                        {selectedHazardousType.keySanitationRequirements.map((req, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-start gap-1.5 text-[11px] text-slate-700 bg-white/80 p-1.5 rounded border border-slate-200/80"
+                          >
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 mt-1.5 shrink-0" />
+                            <span>{req}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
             {isFoodCategory && (
               <div className="p-3 bg-white rounded-lg border border-blue-200 space-y-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">

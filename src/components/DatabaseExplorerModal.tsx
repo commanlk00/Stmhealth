@@ -48,7 +48,7 @@ export const DatabaseExplorerModal: React.FC<DatabaseExplorerModalProps> = ({
           national_id_encrypted: getEncryptedCipherRepresentation(l.ownerNationalId),
           masked_ui_display: maskNationalId(l.ownerNationalId, currentSession.role, false),
           full_name: l.ownerFullName,
-          thaid_verified: 'TRUE (DOPA Cert)',
+          identity_verified: 'TRUE (Gov Verified)',
         }))
       );
     } else if (queryInput.toLowerCase().includes('payment')) {
@@ -188,7 +188,7 @@ export const DatabaseExplorerModal: React.FC<DatabaseExplorerModalProps> = ({
                   <div># full_name (VARCHAR)</div>
                   <div># id_card_address (TEXT)</div>
                   <div># contact_phone (VARCHAR)</div>
-                  <div># thaid_sub_id (VARCHAR)</div>
+                  <div># auth_account_id (VARCHAR)</div>
                   <div># verified_at (TIMESTAMPTZ)</div>
                 </div>
               </div>

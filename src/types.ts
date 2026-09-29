@@ -4,6 +4,25 @@ export type BusinessCategory =
   | 'MARKET' // 7.3 กิจการตลาด
   | 'WASTE_MANAGEMENT'; // 7.4 กิจการรับทำการเก็บ ขน หรือกำจัดสิ่งปฏิกูล/มูลฝอย
 
+export interface HazardousBusinessTypeItem {
+  code: string; // e.g. "6(1)"
+  name: string; // ชื่อเต็มตามประกาศกระทรวง
+  shortName: string; // ชื่อเรียกสั้น
+  typicalFee: number; // อัตราค่าธรรมเนียมมาตรฐาน (บาท)
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH';
+  keySanitationRequirements: string[]; // สุขาภิบาลและการควบคุมมลพิษ
+  popular?: boolean;
+}
+
+export interface HazardousBusinessGroup {
+  id: string; // "group-1" ... "group-13"
+  groupNo: number; // 1 - 13
+  name: string; // e.g. "หมวด 6 กิจการที่เกี่ยวกับโลหะหรือแร่"
+  shortName: string;
+  description: string;
+  types: HazardousBusinessTypeItem[];
+}
+
 export type FoodEstablishmentSubtype = 'OVER_200_SQM' | 'UNDER_200_SQM';
 
 export type LicenseStatus = 'active' | 'expiring_soon' | 'expired' | 'renewing' | 'pending_approval';
@@ -13,20 +32,42 @@ export type UserRole =
   | 'OFFICER' // เจ้าพนักงานสาธารณสุขปฏิบัติการ (ตรวจสถานที่/ตรวจเอกสาร)
   | 'FINANCE' // เจ้าพนักงานการเงินและบัญชี (ตรวจสลิป/รับชำระเงิน/ออกใบเสร็จ)
   | 'DIRECTOR' // ผู้อำนวยการกอง/นายกเทศมนตรี (ผู้อนุมัติ/ลงนามดิจิทัล E-Signature)
-  | 'AUDITOR_ADMIN' // ผู้ดูแลระบบและตรวจสอบความปลอดภัย (WAF/Audit Logs 90 วัน)
-  | 'CITIZEN'; // ผู้ประกอบการ (ยืนยันผ่าน ThaID หรือ OTP)
+  | 'AUDITOR_ADMIN' // ผู้ดูแลระบบและตรวจสอบความปลอดภัย (WAF/Audit Logs 90 วัน/จัดการสิทธิ์เจ้าหน้าที่)
+  | 'CITIZEN'; // ผู้ประกอบการ / ประชาชน
+
+export type StaffAccountStatus = 'ACTIVE' | 'SUSPENDED' | 'INACTIVE';
+
+export interface StaffAccount {
+  id: string;
+  username: string; // รหัสประจำตัวเจ้าหน้าที่ (Login ID)
+  password: string; // รหัสผ่าน (Password)
+  name: string; // ชื่อ-นามสกุล
+  position?: string; // ตำแหน่ง
+  role: UserRole;
+  roleTitle: string;
+  department: string;
+  email: string;
+  phone?: string;
+  status: StaffAccountStatus;
+  allowedPermissions: string[];
+  createdAt: string;
+  lastLoginAt?: string;
+  notes?: string;
+}
 
 export interface UserSession {
   id: string;
+  username?: string;
   name: string;
   role: UserRole;
   roleTitle: string;
   department: string;
   email: string;
-  authMethod: 'THAID' | 'OTP' | '2FA_CREDENTIAL' | 'GOOGLE';
+  authMethod: 'PASSWORD_LOGIN' | '2FA_CREDENTIAL' | 'GOOGLE' | 'OTP';
   is2FAVerified: boolean;
-  nationalId?: string; // สำหรับ ThaID หรือ Citizen
+  nationalId?: string;
   avatarUrl?: string;
+  allowedPermissions?: string[];
 }
 
 export interface UploadedDocument {
@@ -77,6 +118,13 @@ export interface LicenseRecord {
   businessName: string; // ชื่อสถานประกอบการ
   areaSquareMeters?: number; // ขนาดพื้นที่สถานประกอบการ (ตร.ม.)
   
+  // 7.1 กิจการที่เป็นอันตรายต่อสุขภาพ (Hazardous Business Categories & Types)
+  hazardousGroup?: string; // e.g. "หมวด 6 กิจการที่เกี่ยวกับโลหะหรือแร่"
+  hazardousGroupCode?: string; // e.g. "group-6"
+  hazardousType?: string; // e.g. "การเคาะ ปะผุ พ่นสี หรือซ่อมแซมตัวถังยานยนต์ (อู่เคาะพ่นสี)"
+  hazardousTypeCode?: string; // e.g. "6(1)"
+  hazardousRiskLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+
   // 1. ข้อมูลส่วนบุคคลและที่อยู่
   ownerFullName: string; // ชื่อ - นามสกุล
   ownerNationalId: string; // หมายเลขประจำตัวประชาชน 13 หลัก (Encrypted at Rest)

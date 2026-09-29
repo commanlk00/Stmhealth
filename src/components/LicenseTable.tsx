@@ -18,6 +18,7 @@ import {
   UserCheck,
 } from 'lucide-react';
 import { BusinessCategory, LicenseRecord, LicenseStatus, UserSession } from '../types';
+import { HAZARDOUS_BUSINESS_GROUPS } from '../data/hazardousBusinessData';
 import { evaluateLicenseStatus, formatCurrency, formatThaiDate } from '../utils/licenseUtils';
 import { maskNationalId } from '../services/maskingService';
 
@@ -50,6 +51,7 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [selectedHazardousGroupFilter, setSelectedHazardousGroupFilter] = useState<string>('ALL');
   const [filterCitizenOnly, setFilterCitizenOnly] = useState(currentSession.role === 'CITIZEN');
 
   // Filter licenses
@@ -64,6 +66,16 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
       // Category filter
       if (selectedCategory !== 'ALL' && item.category !== selectedCategory) {
         return false;
+      }
+
+      // Hazardous Sub-Group filter
+      if (selectedCategory === 'HAZARDOUS_HEALTH' && selectedHazardousGroupFilter !== 'ALL') {
+        if (item.hazardousGroupCode) {
+          if (item.hazardousGroupCode !== selectedHazardousGroupFilter) return false;
+        } else if (item.categoryLabel) {
+          const groupObj = HAZARDOUS_BUSINESS_GROUPS.find((g) => g.id === selectedHazardousGroupFilter);
+          if (groupObj && !item.categoryLabel.includes(groupObj.shortName)) return false;
+        }
       }
 
       // Status filter
@@ -86,12 +98,15 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
         const matchBusiness = item.businessName.toLowerCase().includes(query);
         const matchAddress = item.businessAddress.toLowerCase().includes(query) || item.idCardAddress.toLowerCase().includes(query);
         const matchId = item.ownerNationalId.includes(query);
-        return matchNo || matchOwner || matchBusiness || matchAddress || matchId;
+        const matchHazType = item.hazardousType?.toLowerCase().includes(query) || false;
+        const matchHazGroup = item.hazardousGroup?.toLowerCase().includes(query) || false;
+        const matchHazCode = item.hazardousTypeCode?.toLowerCase().includes(query) || false;
+        return matchNo || matchOwner || matchBusiness || matchAddress || matchId || matchHazType || matchHazGroup || matchHazCode;
       }
 
       return true;
     });
-  }, [licenses, selectedCategory, activeStatusFilter, searchTerm]);
+  }, [licenses, selectedCategory, selectedHazardousGroupFilter, activeStatusFilter, searchTerm]);
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -104,7 +119,7 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
             </div>
             <div>
               <div className="font-bold">
-                เข้าสู่ระบบบริการประชาชนด้วย ThaID (ผู้ประกอบการ: {currentSession.name})
+                ระบบบริการประชาชนและผู้ประกอบการ (ผู้ประกอบการ: {currentSession.name})
               </div>
               <p className="text-[11px] text-indigo-200">
                 ท่านสามารถตรวจสอบใบอนุญาตของท่าน, สแกนชำระเงินผ่าน PromptPay, และดาวน์โหลด E-License PDF/A
@@ -252,6 +267,39 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
             7.4 ขน/กำจัดสิ่งปฏิกูล-ขยะ
           </button>
         </div>
+
+        {/* Hazardous Health Sub-Groups Filter Bar */}
+        {selectedCategory === 'HAZARDOUS_HEALTH' && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pt-2.5 pb-1 text-xs border-t border-slate-100 scrollbar-none bg-amber-50/50 p-2 rounded-lg">
+            <span className="text-amber-950 font-bold whitespace-nowrap mr-1 flex items-center gap-1 text-[11px]">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
+              หมวดกิจการ (13 หมวด):
+            </span>
+            <button
+              onClick={() => setSelectedHazardousGroupFilter('ALL')}
+              className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-semibold transition-colors ${
+                selectedHazardousGroupFilter === 'ALL'
+                  ? 'bg-amber-600 text-white shadow-2xs'
+                  : 'bg-white text-slate-700 hover:bg-amber-100/70 border border-slate-200'
+              }`}
+            >
+              ทุกหมวด (13 หมวด)
+            </button>
+            {HAZARDOUS_BUSINESS_GROUPS.map((grp) => (
+              <button
+                key={grp.id}
+                onClick={() => setSelectedHazardousGroupFilter(grp.id)}
+                className={`px-2.5 py-1 rounded-full whitespace-nowrap text-[11px] font-medium transition-colors ${
+                  selectedHazardousGroupFilter === grp.id
+                    ? 'bg-amber-600 text-white shadow-2xs font-bold'
+                    : 'bg-white text-slate-700 hover:bg-amber-100/70 border border-slate-200'
+                }`}
+              >
+                ม.{grp.groupNo} {grp.shortName}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* Main Table */}
@@ -302,6 +350,37 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                             ? `พื้นที่ ${lic.areaSquareMeters || '>200'} ตร.ม. (ใบอนุญาต)`
                             : `พื้นที่ ${lic.areaSquareMeters || '≤200'} ตร.ม. (หนังสือรับรองการแจ้ง)`}
                         </span>
+                      )}
+                      {lic.category === 'HAZARDOUS_HEALTH' && (lic.hazardousTypeCode || lic.hazardousType) && (
+                        <div className="flex items-center gap-1 mt-1 flex-wrap">
+                          {lic.hazardousTypeCode && (
+                            <span className="px-1.5 py-0.5 rounded font-mono text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                              รหัส {lic.hazardousTypeCode}
+                            </span>
+                          )}
+                          {lic.hazardousGroup && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 truncate max-w-[130px]">
+                              {lic.hazardousGroup.replace('หมวด ', 'ม.')}
+                            </span>
+                          )}
+                          {lic.hazardousRiskLevel && (
+                            <span
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${
+                                lic.hazardousRiskLevel === 'HIGH'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : lic.hazardousRiskLevel === 'MEDIUM'
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-emerald-100 text-emerald-800'
+                              }`}
+                            >
+                              {lic.hazardousRiskLevel === 'HIGH'
+                                ? 'เสี่ยงสูง'
+                                : lic.hazardousRiskLevel === 'MEDIUM'
+                                ? 'เสี่ยงกลาง'
+                                : 'เสี่ยงต่ำ'}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </td>
 
