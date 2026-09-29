@@ -1,6 +1,11 @@
 import { StaffAccount, StaffAccountStatus, UserRole, UserSession } from '../types';
 import { recordAuditLog } from './auditLogService';
 import { ROLE_PROFILES, canApproveStaff } from './rbacService';
+import {
+  saveStaffAccountOnline,
+  deleteStaffAccountOnline,
+  syncInitialStaffAccountsOnline,
+} from './firestoreService';
 
 const STAFF_STORAGE_KEY = 'gov_staff_accounts_v5';
 
@@ -247,6 +252,9 @@ const INITIAL_STAFF_ACCOUNTS: StaffAccount[] = [
 // Load staff accounts from storage or init with seeded
 export const getStaffAccounts = (): StaffAccount[] => {
   try {
+    // Attempt online sync in the background
+    syncInitialStaffAccountsOnline(INITIAL_STAFF_ACCOUNTS).catch(() => {});
+
     const raw = localStorage.getItem(STAFF_STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
@@ -302,6 +310,12 @@ export const getStaffAccounts = (): StaffAccount[] => {
 export const saveStaffAccounts = (accounts: StaffAccount[]) => {
   try {
     localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(accounts));
+    // Asynchronously sync each account to Cloud Firestore
+    accounts.forEach((acc) => {
+      saveStaffAccountOnline(acc).catch((err) => {
+        console.warn('Sync staff account to Firestore notice:', err);
+      });
+    });
   } catch (e) {
     console.error('Failed to save staff accounts:', e);
   }
@@ -491,6 +505,9 @@ export const deleteStaffAccount = (
 
   const filtered = accounts.filter((a) => a.id !== id);
   saveStaffAccounts(filtered);
+  deleteStaffAccountOnline(id).catch((err) => {
+    console.warn('Delete staff online notice:', err);
+  });
 
   recordAuditLog({
     actorName: adminActor.name,

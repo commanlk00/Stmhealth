@@ -1,4 +1,5 @@
 import { AuditLogEntry, UserRole } from '../types';
+import { recordAuditLogOnline } from './firestoreService';
 
 const AUDIT_LOG_STORAGE_KEY = 'gov_audit_logs_v1';
 
@@ -156,5 +157,8 @@ export const recordAuditLog = (entry: LogPayload): AuditLogEntry => {
 
   const updated = [newLog, ...currentLogs];
   localStorage.setItem(AUDIT_LOG_STORAGE_KEY, JSON.stringify(updated));
+  recordAuditLogOnline(newLog).catch((err) => {
+    console.warn('Audit log online sync notice:', err);
+  });
   return newLog;
 };

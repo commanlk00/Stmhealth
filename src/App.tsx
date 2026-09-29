@@ -20,6 +20,11 @@ import { StaffManagementModal } from './components/StaffManagementModal';
 import { StaffRegisterModal } from './components/StaffRegisterModal';
 import { LicenseRecord, UploadedDocument, UserSession, DigitalSignature } from './types';
 import { getStoredLicenses, saveStoredLicenses, loadDemoLicenses, clearAllLicenses } from './data/mockLicenses';
+import {
+  subscribeToOnlineLicenses,
+  saveLicenseOnline,
+  syncLicensesToOnline,
+} from './services/firestoreService';
 import { googleSignIn, initAuth, logout, signInAsOfficer } from './services/firebaseAuth';
 import { getCurrentSession, saveCurrentSession, hasPermission } from './services/rbacService';
 import { recordAuditLog } from './services/auditLogService';
@@ -103,6 +108,22 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Real-time synchronization with Cloud Firestore online database
+  useEffect(() => {
+    const unsubscribe = subscribeToOnlineLicenses(
+      (onlineLicenses) => {
+        if (onlineLicenses && onlineLicenses.length > 0) {
+          setLicenses(onlineLicenses);
+          saveStoredLicenses(onlineLicenses);
+        }
+      },
+      (err) => {
+        console.warn('Real-time Firestore subscription notice:', err);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
+
   // Save changes to localStorage whenever licenses change
   const updateLicensesState = (updater: (prev: LicenseRecord[]) => LicenseRecord[]) => {
     setLicenses((prev) => {
@@ -110,6 +131,12 @@ export default function App() {
       saveStoredLicenses(updated);
       return updated;
     });
+  };
+
+  // Sync all licenses to Cloud Firestore
+  const handleSyncAllToCloud = async () => {
+    const res = await syncLicensesToOnline(licenses);
+    showToast(`ซิงค์ข้อมูลทั้งหมด ${res.count} รายการขึ้น Cloud Firestore เรียบร้อย`);
   };
 
   // Demo Data handler (Optional import for testing)
@@ -261,6 +288,18 @@ export default function App() {
           }
         : prev
     );
+
+    // Save signed license to Cloud Firestore
+    const targetLicense = licenses.find((l) => l.id === licenseId);
+    if (targetLicense) {
+      saveLicenseOnline({
+        ...targetLicense,
+        eLicenseSignature: signature,
+        approvalStatus: 'approved',
+        approvedBy: signature.signatoryName,
+        approvedAt: signature.signedAt,
+      }).catch((e) => console.warn('Cloud Firestore save error:', e));
+    }
 
     showToast(`ลงนามดิจิทัลรับรองใบอนุญาตอิเล็กทรอนิกส์สำเร็จ!`);
   };
@@ -414,6 +453,11 @@ export default function App() {
     } else {
       showToast(`ต่ออายุใบอนุญาตสำเร็จ (ขยายเวลาถึง ${newExpiryDate})`);
     }
+
+    // Save to Cloud Firestore
+    if (renewedItem) {
+      saveLicenseOnline(renewedItem).catch((e) => console.warn('Firestore renewal sync error:', e));
+    }
   };
 
   // Instant PromptPay Digital Payment Success
@@ -448,6 +492,11 @@ export default function App() {
 
     setSelectedLicenseForPayment(null);
     showToast(`รับชำระเงินผ่าน PromptPay เลขที่ ${transactionRef} สำเร็จ!`);
+
+    // Save to Cloud Firestore
+    if (updatedTarget) {
+      saveLicenseOnline(updatedTarget).catch((e) => console.warn('Firestore payment sync error:', e));
+    }
 
     // Auto sync to sheet if connected
     if (token && spreadsheetId && updatedTarget) {
@@ -497,6 +546,11 @@ export default function App() {
 
       showToast(`ลงทะเบียนและออกใบอนุญาต ${savedLicense.licenseNo} สำเร็จ`);
     }
+
+    // Always persist to Cloud Firestore online
+    saveLicenseOnline(savedLicense).catch((err) => {
+      console.warn('Firestore online save notice:', err);
+    });
 
     // Auto sync to sheet
     if (token && spreadsheetId && savedLicense.syncedToSheet) {
@@ -770,6 +824,9 @@ export default function App() {
       <DatabaseExplorerModal
         isOpen={isDatabaseModalOpen}
         onClose={() => setIsDatabaseModalOpen(false)}
+        licenses={licenses}
+        currentSession={currentSession}
+        onSyncAllToCloud={handleSyncAllToCloud}
       />
 
       <ELicenseModal

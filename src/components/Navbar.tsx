@@ -146,14 +146,15 @@ export const Navbar: React.FC<NavbarProps> = ({
               <span className="hidden xl:inline">Audit Logs</span>
             </button>
 
-            {/* Relational DB & Storage Architecture */}
+            {/* Online Cloud Database Status */}
             <button
               onClick={onOpenDatabaseModal}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 transition-colors"
-              title="ตรวจสอบสถาปัตยกรรมฐานข้อมูล PostgreSQL/MySQL, Data Masking Engine และ Storage Access Control"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-50 hover:bg-emerald-100 text-emerald-900 border border-emerald-300 transition-colors shadow-2xs"
+              title="ฐานข้อมูลออนไลน์ Cloud Firestore เชื่อมต่อแล้ว (คลิกเพื่อดูรายละเอียดและทดสอบการเชื่อมต่อ)"
             >
-              <Database className="w-3.5 h-3.5 text-indigo-600" />
-              <span className="hidden 2xl:inline">DB & Storage</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <Database className="w-3.5 h-3.5 text-emerald-700" />
+              <span className="hidden sm:inline">ฐานข้อมูลออนไลน์</span>
             </button>
 
             {/* Security PIN toggle for PDPA protection */}
