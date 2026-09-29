@@ -168,6 +168,26 @@ export function subscribeToOnlineStaffAccounts(
 }
 
 /**
+ * Fetch all staff accounts directly from Cloud Firestore.
+ */
+export async function fetchOnlineStaffAccounts(): Promise<StaffAccount[]> {
+  try {
+    const snap = await getDocs(collection(db, STAFF_COLLECTION));
+    const list: StaffAccount[] = [];
+    snap.forEach((docSnap) => {
+      list.push({
+        ...(docSnap.data() as StaffAccount),
+        id: docSnap.id,
+      });
+    });
+    return list;
+  } catch (err) {
+    console.warn('Failed to fetch online staff accounts:', err);
+    return [];
+  }
+}
+
+/**
  * Save or update staff account in Cloud Firestore.
  */
 export async function saveStaffAccountOnline(account: StaffAccount): Promise<void> {

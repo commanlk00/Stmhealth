@@ -5,9 +5,12 @@ import {
   saveStaffAccountOnline,
   deleteStaffAccountOnline,
   syncInitialStaffAccountsOnline,
+  fetchOnlineStaffAccounts,
+  subscribeToOnlineStaffAccounts,
 } from './firestoreService';
 
 const STAFF_STORAGE_KEY = 'gov_staff_accounts_v5';
+export const STAFF_EVENT_KEY = 'gov_staff_accounts_updated';
 
 export interface PermissionDefinition {
   code: string;
@@ -249,6 +252,134 @@ const INITIAL_STAFF_ACCOUNTS: StaffAccount[] = [
   },
 ];
 
+// Merge online staff accounts with local accounts, guaranteeing admin account preservation
+export const mergeStaffAccounts = (onlineAccounts: StaffAccount[]): StaffAccount[] => {
+  try {
+    const raw = localStorage.getItem(STAFF_STORAGE_KEY);
+    const localList: StaffAccount[] = raw ? JSON.parse(raw) : INITIAL_STAFF_ACCOUNTS;
+
+    const accountMap = new Map<string, StaffAccount>();
+
+    // 1. Put local accounts first
+    for (const acc of localList) {
+      if (acc && acc.username) {
+        accountMap.set(acc.username.toLowerCase(), acc);
+      }
+    }
+
+    // 2. Overlay / merge online accounts from Cloud Firestore
+    for (const onl of onlineAccounts) {
+      if (onl && onl.username) {
+        const key = onl.username.toLowerCase();
+        const existing = accountMap.get(key);
+        if (existing) {
+          accountMap.set(key, { ...existing, ...onl });
+        } else {
+          accountMap.set(key, onl);
+        }
+      }
+    }
+
+    // 3. Ensure master admin infosser / 464272010 is ALWAYS preserved
+    const adminKey = 'infosser';
+    const existingAdmin = accountMap.get(adminKey);
+    accountMap.set(adminKey, {
+      id: existingAdmin?.id || 'staff-admin-01',
+      username: 'infosser',
+      password: '464272010',
+      name: existingAdmin?.name || 'ผู้ดูแลระบบกลาง (Master Admin)',
+      position: existingAdmin?.position || 'หัวหน้าฝ่ายพัฒนาระบบเทคโนโลยีสารสนเทศ',
+      department: existingAdmin?.department || 'ศูนย์เทคโนโลยีสารสนเทศและการสื่อสาร',
+      email: existingAdmin?.email || 'admin.sys@localgov.go.th',
+      phone: existingAdmin?.phone || '02-123-4567 ต่อ 9999',
+      role: 'AUDITOR_ADMIN',
+      roleTitle: 'ผู้ดูแลระบบและตรวจสอบ (Admin / Auditor)',
+      status: 'ACTIVE',
+      allowedPermissions: [
+        'VIEW_LICENSES',
+        'CREATE_LICENSE',
+        'EDIT_LICENSE',
+        'RENEW_LICENSE',
+        'RECORD_PAYMENT',
+        'PRINT_RECEIPT',
+        'SIGN_E_LICENSE',
+        'APPROVE_LICENSE',
+        'VIEW_AUDIT_LOGS',
+        'EXPORT_AUDIT_LOGS',
+        'SECURITY_MONITOR',
+        'MANAGE_STAFF',
+      ],
+      createdAt: existingAdmin?.createdAt || '2026-01-01T00:00:00Z',
+    });
+
+    const merged = Array.from(accountMap.values());
+    localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(merged));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(STAFF_EVENT_KEY, { detail: merged }));
+    }
+
+    return merged;
+  } catch (err) {
+    console.error('Error merging staff accounts:', err);
+    return getStaffAccounts();
+  }
+};
+
+// Manually fetch and sync all staff accounts from Cloud Firestore
+export const syncStaffAccountsFromCloud = async (): Promise<StaffAccount[]> => {
+  try {
+    const onlineList = await fetchOnlineStaffAccounts();
+    if (onlineList && onlineList.length > 0) {
+      return mergeStaffAccounts(onlineList);
+    } else {
+      // Online collection empty, seed initial accounts
+      const current = getStaffAccounts();
+      for (const acc of current) {
+        await saveStaffAccountOnline(acc);
+      }
+      return current;
+    }
+  } catch (err) {
+    console.warn('Failed to sync staff accounts from cloud:', err);
+    return getStaffAccounts();
+  }
+};
+
+// Real-time synchronization listener for staff accounts
+export const initStaffAccountsListener = (
+  onUpdate?: (accounts: StaffAccount[]) => void
+): (() => void) => {
+  const unsubscribeFirestore = subscribeToOnlineStaffAccounts(
+    (onlineList) => {
+      if (Array.isArray(onlineList) && onlineList.length > 0) {
+        const merged = mergeStaffAccounts(onlineList);
+        if (onUpdate) onUpdate(merged);
+      }
+    },
+    (err) => {
+      console.warn('Firestore staff listener notice:', err);
+    }
+  );
+
+  const handleLocalUpdate = (e: any) => {
+    if (onUpdate) {
+      onUpdate(e.detail || getStaffAccounts());
+    }
+  };
+
+  if (typeof window !== 'undefined') {
+    window.addEventListener(STAFF_EVENT_KEY, handleLocalUpdate);
+  }
+
+  return () => {
+    unsubscribeFirestore();
+    if (typeof window !== 'undefined') {
+      window.removeEventListener(STAFF_EVENT_KEY, handleLocalUpdate);
+    }
+  };
+};
+
 // Load staff accounts from storage or init with seeded
 export const getStaffAccounts = (): StaffAccount[] => {
   try {
@@ -310,6 +441,9 @@ export const getStaffAccounts = (): StaffAccount[] => {
 export const saveStaffAccounts = (accounts: StaffAccount[]) => {
   try {
     localStorage.setItem(STAFF_STORAGE_KEY, JSON.stringify(accounts));
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(STAFF_EVENT_KEY, { detail: accounts }));
+    }
     // Asynchronously sync each account to Cloud Firestore
     accounts.forEach((acc) => {
       saveStaffAccountOnline(acc).catch((err) => {
@@ -749,6 +883,11 @@ export const registerStaffAccount = (data: {
 
   const updated = [newAccount, ...accounts];
   saveStaffAccounts(updated);
+
+  // Guarantee immediate push to Cloud Firestore
+  saveStaffAccountOnline(newAccount).catch((err) => {
+    console.warn('Direct push registered staff to Firestore notice:', err);
+  });
 
   recordAuditLog({
     actorName: newAccount.name,

@@ -15,11 +15,13 @@ import {
   Settings,
   X,
   UserPlus,
+  Clock,
 } from 'lucide-react';
 import { UserSession } from '../types';
 import {
   authenticateStaff,
   getStaffAccounts,
+  getPendingStaffCount,
 } from '../services/staffService';
 import { setCurrentSession } from '../services/rbacService';
 
@@ -167,6 +169,26 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-800 text-xs flex items-center gap-2.5 animate-in fade-in">
               <AlertCircle className="w-5 h-5 text-rose-600 shrink-0" />
               <div className="font-medium">{errorMessage}</div>
+            </div>
+          )}
+
+          {/* Pending Registration Alert Banner */}
+          {getPendingStaffCount() > 0 && (
+            <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-amber-900 text-xs flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 animate-pulse" />
+                <div>
+                  <div className="font-bold">มีคำขอลงทะเบียนเจ้าหน้าที่ใหม่ {getPendingStaffCount()} รายการ</div>
+                  <div className="text-[11px] text-amber-700">เข้าสู่ระบบด้วยบัญชีผู้ดูแลระบบ (infosser) เพื่อตรวจสอบและอนุมัติสิทธิ์</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleQuickSelect('infosser', '464272010')}
+                className="px-2.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] shrink-0 shadow-2xs transition-colors"
+              >
+                เข้าสู่ระบบ Admin
+              </button>
             </div>
           )}
 

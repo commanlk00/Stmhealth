@@ -25,6 +25,7 @@ import {
   saveLicenseOnline,
   syncLicensesToOnline,
 } from './services/firestoreService';
+import { initStaffAccountsListener } from './services/staffService';
 import { googleSignIn, initAuth, logout, signInAsOfficer } from './services/firebaseAuth';
 import { getCurrentSession, saveCurrentSession, hasPermission } from './services/rbacService';
 import { recordAuditLog } from './services/auditLogService';
@@ -121,7 +122,14 @@ export default function App() {
         console.warn('Real-time Firestore subscription notice:', err);
       }
     );
-    return () => unsubscribe();
+
+    // Also subscribe to staff accounts in real-time
+    const unsubscribeStaff = initStaffAccountsListener();
+
+    return () => {
+      unsubscribe();
+      unsubscribeStaff();
+    };
   }, []);
 
   // Save changes to localStorage whenever licenses change

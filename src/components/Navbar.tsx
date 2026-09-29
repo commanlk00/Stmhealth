@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   Lock,
@@ -19,7 +19,7 @@ import {
 import { User } from 'firebase/auth';
 import { UserSession } from '../types';
 import { canApproveStaff } from '../services/rbacService';
-import { getPendingStaffCount } from '../services/staffService';
+import { getPendingStaffCount, initStaffAccountsListener } from '../services/staffService';
 
 interface NavbarProps {
   user: User | null;
@@ -76,8 +76,18 @@ export const Navbar: React.FC<NavbarProps> = ({
 }) => {
   const [showSheetDropdown, setShowSheetDropdown] = useState(false);
   const [showSecurityDropdown, setShowSecurityDropdown] = useState(false);
-  const pendingStaffCount = getPendingStaffCount();
+  const [pendingStaffCount, setPendingStaffCount] = useState<number>(() => getPendingStaffCount());
   const isApprover = canApproveStaff(currentSession.role);
+
+  useEffect(() => {
+    // Listen for real-time changes to staff accounts (Firestore + local)
+    const unsubscribe = initStaffAccountsListener(() => {
+      setPendingStaffCount(getPendingStaffCount());
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
@@ -294,6 +304,21 @@ export const Navbar: React.FC<NavbarProps> = ({
                     รออนุมัติ {pendingStaffCount}
                   </span>
                 )}
+              </button>
+            )}
+
+            {/* Non-approver prompt when there are pending staff registrations */}
+            {!isApprover && pendingStaffCount > 0 && onOpenAuthModal && (
+              <button
+                onClick={onOpenAuthModal}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 ring-2 ring-amber-400/20 shadow-xs transition-colors"
+                title="มีคำขอลงทะเบียนเจ้าหน้าที่ใหม่รออนุมัติ คลิกเพื่อเข้าสู่ระบบผู้ดูแลระบบ (infosser) หรือเจ้าพนักงาน"
+              >
+                <Users className="w-3.5 h-3.5 text-amber-600" />
+                <span className="hidden sm:inline">มีคำขอเจ้าหน้าที่</span>
+                <span className="px-1.5 py-0.2 bg-amber-500 text-white rounded-full text-[10px] font-bold animate-pulse">
+                  รออนุมัติ {pendingStaffCount}
+                </span>
               </button>
             )}
 

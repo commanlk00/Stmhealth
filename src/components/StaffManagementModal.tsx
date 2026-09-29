@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Users,
   UserPlus,
@@ -26,6 +26,7 @@ import {
   SlidersHorizontal,
   FileText,
   BadgeCheck,
+  Cloud,
 } from 'lucide-react';
 import { StaffAccount, StaffAccountStatus, UserRole, UserSession } from '../types';
 import {
@@ -37,6 +38,9 @@ import {
   resetStaffPassword,
   approveStaffRegistration,
   rejectStaffRegistration,
+  registerStaffAccount,
+  syncStaffAccountsFromCloud,
+  initStaffAccountsListener,
   SYSTEM_PERMISSIONS,
   getDefaultPermissionsForRole,
 } from '../services/staffService';
@@ -98,13 +102,78 @@ export const StaffManagementModal: React.FC<StaffManagementModalProps> = ({
   const [resetError, setResetError] = useState<string | null>(null);
   const [resetSuccess, setResetSuccess] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  // Cloud Sync state
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
   const reloadAccounts = () => {
     const list = getStaffAccounts();
     setAccounts([...list]);
     if (onStaffAccountUpdated) onStaffAccountUpdated();
   };
+
+  // Whenever modal opens, reload local accounts and fetch latest from Cloud Firestore
+  useEffect(() => {
+    if (isOpen) {
+      reloadAccounts();
+      syncStaffAccountsFromCloud()
+        .then((synced) => {
+          if (Array.isArray(synced) && synced.length > 0) {
+            setAccounts([...synced]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [isOpen]);
+
+  // Subscribe to real-time updates while component is mounted
+  useEffect(() => {
+    const unsubscribe = initStaffAccountsListener((updated) => {
+      setAccounts([...updated]);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
+  const handleManualSync = async () => {
+    setIsSyncingCloud(true);
+    setSyncFeedback(null);
+    try {
+      const synced = await syncStaffAccountsFromCloud();
+      setAccounts([...synced]);
+      setSyncFeedback(`ซิงค์ Cloud Firestore สำเร็จแล้ว (พบข้อมูล ${synced.length} บัญชี)`);
+      setTimeout(() => setSyncFeedback(null), 4000);
+    } catch (e) {
+      setSyncFeedback('เกิดข้อผิดพลาดในการเชื่อมต่อ Cloud Firestore');
+    } finally {
+      setIsSyncingCloud(false);
+    }
+  };
+
+  const handleCreateMockPending = () => {
+    const randNum = Math.floor(100 + Math.random() * 900);
+    const mockUser = `officer_${randNum}`;
+    const res = registerStaffAccount({
+      username: mockUser,
+      password: 'GovPass#2026',
+      name: `นายสมชาย ทดสอบระบบ (${randNum})`,
+      position: 'เจ้าหน้าที่บันทึกข้อมูล',
+      department: 'ฝ่ายสุขาภิบาลและอนามัยสิ่งแวดล้อม',
+      email: `${mockUser}@localgov.go.th`,
+      phone: '081-999-8888',
+      requestedRole: 'DATA_ENTRY',
+      requestedReason: 'ทดสอบส่งคำขอลงทะเบียนเจ้าหน้าที่เข้าระบบ',
+    });
+    if (res.success) {
+      reloadAccounts();
+      setActiveTab('PENDING');
+      setSyncFeedback(`สร้างคำขอทดสอบ "${mockUser}" สำเร็จแล้ว`);
+      setTimeout(() => setSyncFeedback(null), 4000);
+    }
+  };
+
+  if (!isOpen) return null;
 
   const isAuthorizedApprover = canApproveStaff(currentSession.role);
   const pendingAccounts = accounts.filter((a) => a.status === 'PENDING');
@@ -459,7 +528,17 @@ export const StaffManagementModal: React.FC<StaffManagementModalProps> = ({
                 </button>
               </div>
 
-              <div className="pb-2">
+              <div className="pb-2 flex items-center gap-2">
+                <button
+                  onClick={handleManualSync}
+                  disabled={isSyncingCloud}
+                  className="py-1.5 px-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-800 rounded-lg font-semibold text-xs flex items-center gap-1.5 shadow-2xs transition-colors"
+                  title="ซิงค์และดึงข้อมูลคำขอลงทะเบียนเจ้าหน้าที่จาก Cloud Firestore ทันที"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 text-emerald-600 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                  <span>{isSyncingCloud ? 'กำลังซิงค์ Cloud...' : 'ซิงค์ Cloud Firestore'}</span>
+                </button>
+
                 <button
                   onClick={handleOpenAdd}
                   className="py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold text-xs flex items-center gap-1.5 shadow-xs transition-colors"
@@ -469,6 +548,19 @@ export const StaffManagementModal: React.FC<StaffManagementModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Cloud Sync Feedback Banner */}
+            {syncFeedback && (
+              <div className="mx-4 mt-3 p-2.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-medium flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>{syncFeedback}</span>
+                </div>
+                <button onClick={() => setSyncFeedback(null)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
 
             {/* TAB 1: PENDING REQUESTS APPROVAL */}
             {activeTab === 'PENDING' && (
@@ -486,12 +578,29 @@ export const StaffManagementModal: React.FC<StaffManagementModalProps> = ({
                 </div>
 
                 {pendingAccounts.length === 0 ? (
-                  <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50">
-                    <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-2 opacity-60" />
-                    <h4 className="text-sm font-bold text-slate-700">ไม่มีคำขอลงทะเบียนที่รอการอนุมัติ</h4>
-                    <p className="text-xs text-slate-400 mt-1">
-                      เมื่อเจ้าหน้าที่บันทึกข้อมูลหรือเจ้าหน้าที่ใหม่ยื่นคำขอลงทะเบียนผ่านหน้าแรก รายชื่อจะปรากฏที่นี่ทันที
+                  <div className="p-8 sm:p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl bg-slate-50/50 space-y-3">
+                    <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto opacity-60" />
+                    <h4 className="text-sm font-bold text-slate-700">ไม่มีคำขอลงทะเบียนที่รอการอนุมัติในขณะนี้</h4>
+                    <p className="text-xs text-slate-500 max-w-md mx-auto">
+                      เมื่อเจ้าหน้าที่ยื่นคำขอลงทะเบียน ข้อมูลจะถูกบันทึกลง Cloud Firestore แบบออนไลน์ทันที หากเพื่อนร่วมงานเพิ่งลงทะเบียนจากเครื่องอื่น สามารถกดปุ่มซิงค์เพื่อดึงข้อมูลล่าสุดได้ทันที
                     </p>
+                    <div className="pt-2 flex items-center justify-center gap-2.5 flex-wrap">
+                      <button
+                        onClick={handleManualSync}
+                        disabled={isSyncingCloud}
+                        className="px-3.5 py-2 bg-white border border-emerald-300 text-emerald-700 hover:bg-emerald-50 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isSyncingCloud ? 'animate-spin' : ''}`} />
+                        <span>ดึงข้อมูลล่าสุดจาก Cloud Firestore</span>
+                      </button>
+                      <button
+                        onClick={handleCreateMockPending}
+                        className="px-3.5 py-2 bg-amber-50 border border-amber-300 text-amber-800 hover:bg-amber-100 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors"
+                      >
+                        <UserPlus className="w-3.5 h-3.5 text-amber-600" />
+                        <span>ทดลองสร้างคำขอลงทะเบียนจำลอง</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-3">
